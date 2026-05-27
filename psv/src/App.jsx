@@ -114,6 +114,9 @@ function App() {
   const [editingPolygonId, setEditingPolygonId] = useState(null);
   const [editingPointId, setEditingPointId] = useState(null);
 
+  // Draft state representing the marker currently under active edit (before hitting Save)
+  const [draftMarker, setDraftMarker] = useState(null);
+
   const panoramaUrl = '/sphere.jpg';
 
   const handleMarkerClick = (marker) => {
@@ -121,27 +124,21 @@ function App() {
     if (editingPolygonId) {
       if (marker.id.startsWith('delete-handle-')) {
         const pointIndex = parseInt(marker.id.split('-').pop(), 10);
-        setMarkers(prev => prev.map(m => {
-          if (m.id === editingPolygonId && m.polygon) {
-            const newPoints = [...m.polygon];
+        setDraftMarker(prev => {
+          if (prev && prev.polygon) {
+            const newPoints = [...prev.polygon];
             newPoints.splice(pointIndex, 1);
-            return { ...m, polygon: newPoints };
+            return { ...prev, polygon: newPoints };
           }
-          return m;
-        }));
+          return prev;
+        });
         return;
       }
       if (marker.id.startsWith('edit-handle-')) {
         return; // Click on edit handle does nothing (dragging updates position)
       }
     }
-
-    if (drawingMode !== 'none') return; // Disable standard marker clicks while drawing
-    
-    const targetMarker = markers.find(m => m.id === marker.id);
-    if (targetMarker) {
-      setSelectedMarkerId(marker.id); // Only select, do NOT enter edit mode directly
-    }
+    // Clicking standard markers in the viewer does NOT select it now (only select via sidebar list)
   };
 
   const handleViewerClick = (data) => {
@@ -162,7 +159,8 @@ function App() {
       setMarkers(prev => [...prev, newMarker]);
       setDrawingMode('none');
       setSelectedMarkerId(newMarker.id); // Automatically select newly created point
-      setEditingPointId(newMarker.id); // Directly enter edit mode for configuring it
+      setEditingPointId(newMarker.id); // Automatically start editing
+      setDraftMarker(JSON.parse(JSON.stringify(newMarker))); // Initialize draft
     } else if (drawingMode === 'polygon') {
       setDraftPoints(prev => [...prev, [yaw, pitch]]);
     }
@@ -196,8 +194,9 @@ function App() {
           tooltip: '自定义绘制的多边形'
         };
         setMarkers(prev => [...prev, newPolygon]);
-        setSelectedMarkerId(newPolygon.id); // Select
+        setSelectedMarkerId(newPolygon.id); // Automatically select newly created polygon
         setEditingPolygonId(newPolygon.id); // Enter edit mode directly
+        setDraftMarker(JSON.parse(JSON.stringify(newPolygon))); // Initialize draft
       } else {
         alert("多边形至少需要3个点！");
       }
@@ -218,81 +217,109 @@ function App() {
   };
 
   const handleSelectMarker = (id) => {
+    // If we are currently editing another marker, we should discard the draft
+    if (editingPolygonId || editingPointId) {
+      setEditingPolygonId(null);
+      setEditingPointId(null);
+      setDraftMarker(null);
+    }
     setSelectedMarkerId(id);
   };
 
   const handleToggleEdit = (id) => {
-    setEditingPolygonId(editingPolygonId === id ? null : id);
-    setEditingPointId(null);
+    if (editingPolygonId !== id) {
+      const target = markers.find(m => m.id === id);
+      setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
+      setEditingPolygonId(id);
+      setEditingPointId(null);
+    } else {
+      // Exit without saving
+      setEditingPolygonId(null);
+      setDraftMarker(null);
+    }
   };
 
   const handleToggleEditPoint = (id) => {
-    setEditingPointId(editingPointId === id ? null : id);
+    if (editingPointId !== id) {
+      const target = markers.find(m => m.id === id);
+      setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
+      setEditingPointId(id);
+      setEditingPolygonId(null);
+    } else {
+      // Exit without saving
+      setEditingPointId(null);
+      setDraftMarker(null);
+    }
+  };
+
+  const handleUpdateDraft = (updates) => {
+    setDraftMarker(prev => {
+      if (!prev) return null;
+      return { ...prev, ...updates };
+    });
+  };
+
+  const handleSaveEdit = (id) => {
+    if (!draftMarker) return;
+    setMarkers(prev => prev.map(m => {
+      if (m.id === id) {
+        return draftMarker;
+      }
+      return m;
+    }));
+    setEditingPointId(null);
     setEditingPolygonId(null);
+    setDraftMarker(null);
   };
 
-  const handleUpdatePoint = (id, updates) => {
-    setMarkers(prev => prev.map(m => {
-      if (m.id === id) {
-        return { ...m, ...updates };
-      }
-      return m;
-    }));
-  };
-
-  const handleUpdatePolygon = (id, updates) => {
-    setMarkers(prev => prev.map(m => {
-      if (m.id === id) {
-        return { ...m, ...updates };
-      }
-      return m;
-    }));
+  const handleCancelEdit = () => {
+    setEditingPointId(null);
+    setEditingPolygonId(null);
+    setDraftMarker(null);
   };
 
   const handlePointDrag = (id, yaw, pitch) => {
-    setMarkers(prev => prev.map(m => {
-      if (m.id === id) {
+    // During dragging, update the position in draftMarker for real-time preview
+    setDraftMarker(prev => {
+      if (prev && prev.id === id) {
         return {
-          ...m,
+          ...prev,
           position: { yaw, pitch }
         };
       }
-      return m;
-    }));
+      return prev;
+    });
   };
 
   const handleDeleteMarker = (id) => {
     if (editingPolygonId === id) setEditingPolygonId(null);
     if (editingPointId === id) setEditingPointId(null);
     if (selectedMarkerId === id) setSelectedMarkerId(null);
+    if (draftMarker && draftMarker.id === id) setDraftMarker(null);
     setMarkers(prev => prev.filter(marker => marker.id !== id));
   };
 
   // Dragging handler for editing polygon points
   const handleEditPointDrag = (pointIndex, yaw, pitch) => {
-    if (editingPolygonId) {
-      setMarkers(prev => prev.map(m => {
-        if (m.id === editingPolygonId && m.polygon) {
-          const newPoints = [...m.polygon];
-          newPoints[pointIndex] = [yaw, pitch];
-          return { ...m, polygon: newPoints };
-        }
-        return m;
-      }));
-    }
+    setDraftMarker(prev => {
+      if (prev && prev.polygon) {
+        const newPoints = [...prev.polygon];
+        newPoints[pointIndex] = [yaw, pitch];
+        return { ...prev, polygon: newPoints };
+      }
+      return prev;
+    });
   };
 
   // Double click handler for viewer (finishing drawing or adding point in edit mode)
   const handleViewerDblClick = (data) => {
     if (drawingMode === 'polygon') {
       finishPolygon();
-    } else if (editingPolygonId) {
+    } else if (editingPolygonId && draftMarker && draftMarker.polygon) {
       const { yaw, pitch } = data;
-      
-      const activePolygon = markers.find(m => m.id === editingPolygonId);
-      if (!activePolygon || !activePolygon.polygon || activePolygon.polygon.length < 2) return;
+      const points = draftMarker.polygon;
+      if (points.length < 2) return;
 
-      const points = activePolygon.polygon;
       let minDistance = Infinity;
       let insertIndex = -1;
 
@@ -307,64 +334,66 @@ function App() {
       }
 
       if (minDistance < 0.08 && insertIndex !== -1) {
-        setMarkers(prev => prev.map(m => {
-          if (m.id === editingPolygonId && m.polygon) {
-            const newPoints = [...m.polygon];
+        setDraftMarker(prev => {
+          if (prev && prev.polygon) {
+            const newPoints = [...prev.polygon];
             newPoints.splice(insertIndex, 0, [yaw, pitch]);
             return {
-              ...m,
+              ...prev,
               polygon: newPoints
             };
           }
-          return m;
-        }));
+          return prev;
+        });
       }
     }
   };
 
   const handleEditPointDelete = (pointIndex) => {
-    if (editingPolygonId) {
-      setMarkers(prev => prev.map(m => {
-        if (m.id === editingPolygonId && m.polygon) {
-          const newPoints = [...m.polygon];
-          newPoints.splice(pointIndex, 1);
-          return { ...m, polygon: newPoints };
-        }
-        return m;
-      }));
-    }
+    setDraftMarker(prev => {
+      if (prev && prev.polygon) {
+        const newPoints = [...prev.polygon];
+        newPoints.splice(pointIndex, 1);
+        return { ...prev, polygon: newPoints };
+      }
+      return prev;
+    });
   };
 
   // Combine saved markers with the dynamic draft shape and edit handles
   const displayMarkers = useMemo(() => {
     // 1. Transform raw point markers with dynamic HTML
     const list = markers.map(m => {
-      const isSelected = selectedMarkerId === m.id;
-      const isEditing = (editingPointId === m.id || editingPolygonId === m.id);
+      const isEditingThis = draftMarker && draftMarker.id === m.id;
+      // Real-time preview uses draftMarker values if this marker is being edited
+      const currentMarker = isEditingThis ? draftMarker : m;
 
-      if (m.type === 'point') {
-        const isEditingPoint = editingPointId === m.id;
+      const isSelected = selectedMarkerId === currentMarker.id;
+      const isEditing = (editingPointId === currentMarker.id || editingPolygonId === currentMarker.id);
+
+      if (currentMarker.type === 'point') {
+        const isEditingPoint = editingPointId === currentMarker.id;
         return {
-          ...m,
+          ...currentMarker,
           html: `
-            <div class="draggable-point-marker" data-marker-id="${m.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditingPoint ? 'grab' : 'pointer'}; user-select: none;">
-              <div class="marker-icon-wrapper" style="background: ${m.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'white')}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${(isEditingPoint || isSelected) ? 'scale(1.15)' : 'none'};">
-                ${m.icon || '📍'}
+            <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditingPoint ? 'grab' : 'pointer'}; user-select: none;">
+              <div class="marker-icon-wrapper" style="background: ${currentMarker.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'white')}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${(isEditingPoint || isSelected) ? 'scale(1.15)' : 'none'};">
+                ${currentMarker.icon || '📍'}
               </div>
               <div class="marker-title" style="background: ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'rgba(0,0,0,0.8)')}; color: ${isEditingPoint ? '#000' : '#fff'}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
-                ${m.title || '未命名'}
+                ${currentMarker.title || '未命名'}
               </div>
             </div>
           `,
           anchor: 'bottom center'
         };
-      } else if (m.polygon) {
+      } else if (currentMarker.polygon) {
         // Build style dynamically based on polygon properties
-        const strokeColor = m.strokeColor || '#ff0000';
-        const strokeWidth = `${m.strokeWidth || 2}px`;
-        const fillColor = m.fillColor || '#ff0000';
-        const fillOpacity = m.fillOpacity !== undefined ? m.fillOpacity : 0.2;
-        const fillStyle = m.fillStyle || 'solid';
+        const strokeColor = currentMarker.strokeColor || '#ff0000';
+        const strokeWidth = `${currentMarker.strokeWidth || 2}px`;
+        const fillColor = currentMarker.fillColor || '#ff0000';
+        const fillOpacity = currentMarker.fillOpacity !== undefined ? currentMarker.fillOpacity : 0.2;
+        const fillStyle = currentMarker.fillStyle || 'solid';
 
         const hexToRgba = (hex, alpha) => {
           let c = hex.substring(1);
@@ -381,7 +410,7 @@ function App() {
         const fill = fillStyle === 'none' ? 'none' : hexToRgba(fillColor, fillOpacity);
 
         return {
-          ...m,
+          ...currentMarker,
           svgStyle: {
             fill: isEditing ? 'rgba(255, 193, 7, 0.3)' : (isSelected ? hexToRgba(fillColor, Math.min(1, fillOpacity + 0.15)) : fill),
             stroke: isEditing ? 'rgba(255, 193, 7, 1)' : (isSelected ? 'rgba(0, 123, 255, 1)' : stroke),
@@ -389,7 +418,7 @@ function App() {
           }
         };
       }
-      return m;
+      return currentMarker;
     });
     
     // 2. Inject drafting markers
@@ -429,31 +458,28 @@ function App() {
       }
     }
 
-    // 3. Inject edit vertices for active polygon editing
-    if (editingPolygonId) {
-      const activePolygon = markers.find(m => m.id === editingPolygonId);
-      if (activePolygon && activePolygon.polygon) {
-        activePolygon.polygon.forEach((pt, index) => {
-          list.push({
-            id: `edit-handle-${index}`,
-            position: { yaw: pt[0], pitch: pt[1] },
-            html: `
-              <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                <!-- Drag handle (red dot) -->
-                <div class="edit-handle-marker" data-handle-index="${index}" style="background: red; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
-                <!-- Delete button (white circle with red X) -->
-                <div class="edit-delete-marker" data-handle-index="${index}" style="position: absolute; top: -2px; right: -2px; background: white; color: red; font-size: 10px; width: 14px; height: 14px; border-radius: 50%; border: 1px solid red; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; box-shadow: 0 0 3px rgba(0,0,0,0.5); pointer-events: auto;">×</div>
-              </div>
-            `,
-            anchor: 'center',
-            tooltip: '拖动修改位置，点击红叉删除'
-          });
+    // 3. Inject edit vertices for active polygon editing (using draftMarker coordinates)
+    if (editingPolygonId && draftMarker && draftMarker.polygon) {
+      draftMarker.polygon.forEach((pt, index) => {
+        list.push({
+          id: `edit-handle-${index}`,
+          position: { yaw: pt[0], pitch: pt[1] },
+          html: `
+            <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+              <!-- Drag handle (red dot) -->
+              <div class="edit-handle-marker" data-handle-index="${index}" style="background: red; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
+              <!-- Delete button (white circle with red X) -->
+              <div class="edit-delete-marker" data-handle-index="${index}" style="position: absolute; top: -2px; right: -2px; background: white; color: red; font-size: 10px; width: 14px; height: 14px; border-radius: 50%; border: 1px solid red; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; box-shadow: 0 0 3px rgba(0,0,0,0.5); pointer-events: auto;">×</div>
+            </div>
+          `,
+          anchor: 'center',
+          tooltip: '拖动修改位置，点击红叉删除'
         });
-      }
+      });
     }
 
     return list;
-  }, [markers, drawingMode, draftPoints, editingPolygonId, editingPointId, selectedMarkerId]);
+  }, [markers, drawingMode, draftPoints, editingPolygonId, editingPointId, selectedMarkerId, draftMarker]);
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1400px', margin: '0 auto', display: 'flex', gap: '20px' }}>
@@ -461,7 +487,7 @@ function App() {
       {/* Left Panel: Viewer */}
       <div style={{ flex: 1, minWidth: '0' }}>
         <h1>Photo Sphere Viewer - 画板管理台</h1>
-        <p>支持多边形顶点与配色编辑，点标记自由拖放，点标记名称、图标及配色实时编辑。</p>
+        <p>支持多边形与标记点编辑。更改配置可以实时预览，确认无误后点击保存生效。</p>
         
         <EditorToolbar
           drawingMode={drawingMode}
@@ -470,18 +496,21 @@ function App() {
             setEditingPolygonId(null);
             setEditingPointId(null);
             setSelectedMarkerId(null);
+            setDraftMarker(null);
           }}
           onStartPoint={() => {
             setDrawingMode('point');
             setEditingPolygonId(null);
             setEditingPointId(null);
             setSelectedMarkerId(null);
+            setDraftMarker(null);
           }}
           onRestoreDefault={() => {
             setMarkers(INITIAL_MARKERS);
             setEditingPolygonId(null);
             setEditingPointId(null);
             setSelectedMarkerId(null);
+            setDraftMarker(null);
           }}
           onFinishPolygon={finishPolygon}
           onCancelDrawing={cancelDrawing}
@@ -512,13 +541,15 @@ function App() {
         selectedMarkerId={selectedMarkerId}
         editingPolygonId={editingPolygonId}
         editingPointId={editingPointId}
+        draftMarker={draftMarker}
         onGotoMarker={gotoMarker}
         onSelectMarker={handleSelectMarker}
         onToggleEdit={handleToggleEdit}
         onToggleEditPoint={handleToggleEditPoint}
         onDeleteMarker={handleDeleteMarker}
-        onUpdatePoint={handleUpdatePoint}
-        onUpdatePolygon={handleUpdatePolygon}
+        onUpdateDraft={handleUpdateDraft}
+        onSaveEdit={handleSaveEdit}
+        onCancelEdit={handleCancelEdit}
       />
 
     </div>
