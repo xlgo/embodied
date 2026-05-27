@@ -260,12 +260,7 @@ export default function MarkerList({
                 
                 {isPoint ? (
                   <button 
-                    onClick={() => {
-                      if (!isSelected) {
-                        onSelectMarker(m.id);
-                      }
-                      onToggleEditPoint(m.id);
-                    }} 
+                    onClick={() => onToggleEditPoint(m.id)} 
                     style={{
                       ...btnStyle, 
                       background: isEditingPoint ? '#ffc107' : 'white', 
@@ -278,12 +273,7 @@ export default function MarkerList({
                   </button>
                 ) : (
                   <button 
-                    onClick={() => {
-                      if (!isSelected) {
-                        onSelectMarker(m.id);
-                      }
-                      onToggleEdit(m.id);
-                    }} 
+                    onClick={() => onToggleEdit(m.id)} 
                     style={{
                       ...btnStyle, 
                       background: isEditingPolygon ? '#ffc107' : 'white', 
