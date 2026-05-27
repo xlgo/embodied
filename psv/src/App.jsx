@@ -243,17 +243,12 @@ function App() {
   };
 
   const handleSelectMarker = (id) => {
-    if (selectedMarkerId === id) return;
-
-    // Check if there are unsaved changes
-    if (draftMarker) {
-      const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并切换吗？");
-      if (!confirmDiscard) return;
+    // If we are currently editing another marker, we should discard the draft
+    if (editingPolygonId || editingPointId) {
+      setEditingPolygonId(null);
+      setEditingPointId(null);
+      setDraftMarker(null);
     }
-
-    setEditingPolygonId(null);
-    setEditingPointId(null);
-    setDraftMarker(null);
     setSelectedMarkerId(id);
   };
 
@@ -541,6 +536,19 @@ function App() {
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1400px', margin: '0 auto', display: 'flex', gap: '20px' }}>
       
+      <style>{`
+        @keyframes modalFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
+
       {/* Left Panel: Viewer */}
       <div style={{ flex: 1, minWidth: '0' }}>
         <h1>Photo Sphere Viewer - 画板管理台</h1>
@@ -610,16 +618,233 @@ function App() {
         selectedMarkerId={selectedMarkerId}
         editingPolygonId={editingPolygonId}
         editingPointId={editingPointId}
-        draftMarker={draftMarker}
         onGotoMarker={gotoMarker}
         onSelectMarker={handleSelectMarker}
         onToggleEdit={handleToggleEdit}
         onToggleEditPoint={handleToggleEditPoint}
         onDeleteMarker={handleDeleteMarker}
-        onUpdateDraft={handleUpdateDraft}
-        onSaveEdit={handleSaveEdit}
-        onCancelEdit={handleCancelEdit}
       />
+
+      {/* Modal Dialog for Editing */}
+      {draftMarker && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(3px)'
+        }} onClick={handleCancelEdit}>
+          <div style={{
+            width: '440px',
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            animation: 'modalFadeIn 0.25s ease-out'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#333', fontFamily: 'sans-serif' }}>
+                {draftMarker.type === 'point' ? '📍 编辑标记点属性' : '⬡ 编辑多边形顶点与样式'}
+              </h3>
+              <button 
+                onClick={handleCancelEdit} 
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999', fontWeight: 'bold' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ fontFamily: 'sans-serif' }}>
+              {draftMarker.type === 'point' ? (
+                // Point marker fields
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>标题名称:</label>
+                    <input 
+                      type="text" 
+                      value={draftMarker.title || ''} 
+                      onChange={(e) => handleUpdateDraft({ title: e.target.value })}
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                      placeholder="例如: 设备位置"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>标记圆圈颜色:</label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input 
+                        type="color" 
+                        value={draftMarker.color || '#ff0000'} 
+                        onChange={(e) => handleUpdateDraft({ color: e.target.value })}
+                        style={{ border: 'none', width: '45px', height: '32px', cursor: 'pointer', padding: 0, background: 'none' }}
+                      />
+                      <span style={{ fontSize: '13px', color: '#666', fontFamily: 'monospace' }}>{draftMarker.color || '#ff0000'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>选择图标 (Emoji/单个字):</label>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      {['📍', '🚩', '🏠', '⚠️', 'ℹ️', '⭐', '🔥', '💬', '👀', '🎯'].map(emoji => (
+                        <button 
+                          key={emoji} 
+                          type="button" 
+                          onClick={() => handleUpdateDraft({ icon: emoji })}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '18px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            borderColor: draftMarker.icon === emoji ? '#007bff' : '#ddd',
+                            background: draftMarker.icon === emoji ? '#e7f1ff' : '#f8f9fa'
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <input 
+                      type="text" 
+                      maxLength={2}
+                      value={draftMarker.icon || ''} 
+                      onChange={(e) => handleUpdateDraft({ icon: e.target.value })}
+                      style={{ width: '80px', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      placeholder="或自定义"
+                    />
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: '#155724', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', padding: '10px', borderRadius: '4px', marginTop: '4px' }}>
+                    💡 <strong>提示：</strong>在左侧全景视图上，您可以直接用鼠标按住拖动该标记点以精确调整其位置。
+                  </div>
+                </div>
+              ) : (
+                // Polygon marker fields
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>边框线条颜色:</label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input 
+                        type="color" 
+                        value={draftMarker.strokeColor || '#ff0000'} 
+                        onChange={(e) => handleUpdateDraft({ strokeColor: e.target.value })}
+                        style={{ border: 'none', width: '45px', height: '32px', cursor: 'pointer', padding: 0, background: 'none' }}
+                      />
+                      <span style={{ fontSize: '13px', color: '#666', fontFamily: 'monospace' }}>{draftMarker.strokeColor || '#ff0000'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>边框粗细 ({draftMarker.strokeWidth || 2}px):</label>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="10" 
+                      value={draftMarker.strokeWidth || 2} 
+                      onChange={(e) => handleUpdateDraft({ strokeWidth: parseInt(e.target.value, 10) })}
+                      style={{ width: '100%', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>填充方式:</label>
+                    <select 
+                      value={draftMarker.fillStyle || 'solid'} 
+                      onChange={(e) => handleUpdateDraft({ fillStyle: e.target.value })}
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer' }}
+                    >
+                      <option value="solid">实色填充</option>
+                      <option value="none">无填充 (仅保留边框)</option>
+                    </select>
+                  </div>
+
+                  {draftMarker.fillStyle !== 'none' && (
+                    <>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>填充区域颜色:</label>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <input 
+                            type="color" 
+                            value={draftMarker.fillColor || '#ff0000'} 
+                            onChange={(e) => handleUpdateDraft({ fillColor: e.target.value })}
+                            style={{ border: 'none', width: '45px', height: '32px', cursor: 'pointer', padding: 0, background: 'none' }}
+                          />
+                          <span style={{ fontSize: '13px', color: '#666', fontFamily: 'monospace' }}>{draftMarker.fillColor || '#ff0000'}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>填充不透明度 ({Math.round((draftMarker.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.2) * 100)}%):</label>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="1" 
+                          step="0.05" 
+                          value={draftMarker.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.2} 
+                          onChange={(e) => handleUpdateDraft({ fillOpacity: parseFloat(e.target.value) })}
+                          style={{ width: '100%', cursor: 'pointer' }}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div style={{ fontSize: '12px', color: '#155724', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', padding: '10px', borderRadius: '4px', marginTop: '4px' }}>
+                    💡 <strong>提示：</strong>在左侧全景视图上，您可以按住拖动顶点修改多边形形状，双击边框线条以增加新顶点，或点击顶点上的 <strong>&times;</strong> 按钮删除点。
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '16px', marginTop: '8px' }}>
+              <button 
+                onClick={handleCancelEdit} 
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  cursor: 'pointer',
+                  background: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                ❌ 取消并丢弃
+              </button>
+              <button 
+                onClick={() => handleSaveEdit(draftMarker.id)} 
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #28a745',
+                  cursor: 'pointer',
+                  background: '#28a745',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                💾 保存并生效
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
