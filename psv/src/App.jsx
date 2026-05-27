@@ -469,9 +469,9 @@ function App() {
         return {
           ...currentMarker,
           svgStyle: {
-            fill: isEditing ? 'rgba(255, 193, 7, 0.3)' : (isSelected ? hexToRgba(fillColor, Math.min(1, fillOpacity + 0.15)) : fill),
-            stroke: isEditing ? 'rgba(255, 193, 7, 1)' : (isSelected ? 'rgba(0, 123, 255, 1)' : stroke),
-            strokeWidth: isEditing ? '4px' : (isSelected ? '4px' : strokeWidth)
+            fill: fill,
+            stroke: stroke,
+            strokeWidth: strokeWidth
           }
         };
       }
