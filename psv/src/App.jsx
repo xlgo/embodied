@@ -312,7 +312,7 @@ function App() {
         return {
           ...m,
           html: `
-            <div class="draggable-point-marker" data-marker-id="${m.id}" style="display: flex; flex-direction: column; align-items: center; cursor: grab; user-select: none;">
+            <div class="draggable-point-marker" data-marker-id="${m.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
               <div class="marker-icon-wrapper" style="background: ${m.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditing ? '#ffc107' : 'white'}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${isEditing ? 'scale(1.15)' : 'none'};">
                 ${m.icon || '📍'}
               </div>
@@ -421,6 +421,7 @@ function App() {
             onPointDrag={handlePointDrag}
             drawingMode={drawingMode}
             editingPolygonId={editingPolygonId}
+            editingPointId={editingPointId}
           />
         </div>
       </div>

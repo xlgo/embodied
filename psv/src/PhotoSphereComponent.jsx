@@ -16,7 +16,8 @@ const PhotoSphereComponent = forwardRef(({
   onEditPointDelete,
   onPointDrag,
   drawingMode = 'none',
-  editingPolygonId = null
+  editingPolygonId = null,
+  editingPointId = null
 }, ref) => {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -42,6 +43,7 @@ const PhotoSphereComponent = forwardRef(({
   const onPointDragRef = useRef(onPointDrag);
   const markersRef = useRef(markers);
   const editingPolygonIdRef = useRef(editingPolygonId);
+  const editingPointIdRef = useRef(editingPointId);
 
   useEffect(() => {
     onMarkerClickRef.current = onMarkerClick;
@@ -52,7 +54,8 @@ const PhotoSphereComponent = forwardRef(({
     onPointDragRef.current = onPointDrag;
     markersRef.current = markers;
     editingPolygonIdRef.current = editingPolygonId;
-  }, [onMarkerClick, onViewerClick, onViewerDblClick, onEditPointDrag, onEditPointDelete, onPointDrag, markers, editingPolygonId]);
+    editingPointIdRef.current = editingPointId;
+  }, [onMarkerClick, onViewerClick, onViewerDblClick, onEditPointDrag, onEditPointDelete, onPointDrag, markers, editingPolygonId, editingPointId]);
 
   // Update cursor when drawing mode changes
   useEffect(() => {
@@ -98,6 +101,12 @@ const PhotoSphereComponent = forwardRef(({
       const pointMarker = e.target.closest('.draggable-point-marker');
       if (pointMarker && drawingMode === 'none' && !editingPolygonIdRef.current) {
         const markerId = pointMarker.getAttribute('data-marker-id');
+        
+        // ONLY allow dragging if this point is currently being edited
+        if (markerId !== editingPointIdRef.current) {
+          return;
+        }
+
         let offset = { yaw: 0, pitch: 0 };
         const markerObj = markersRef.current.find(m => m.id === markerId);
         if (markerObj && markerObj.position && viewerRef.current) {
