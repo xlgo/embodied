@@ -249,6 +249,7 @@ function App() {
       }
       setEditingPolygonId(null);
       setDraftMarker(null);
+      setSelectedMarkerId(null); // Deselect on toggle off
     }
   };
 
@@ -270,6 +271,7 @@ function App() {
       }
       setEditingPointId(null);
       setDraftMarker(null);
+      setSelectedMarkerId(null); // Deselect on toggle off
     }
   };
 
@@ -291,6 +293,7 @@ function App() {
     setEditingPointId(null);
     setEditingPolygonId(null);
     setDraftMarker(null);
+    setSelectedMarkerId(null); // Deselect on save
   };
 
   const handleCancelEdit = () => {
@@ -301,6 +304,7 @@ function App() {
     setEditingPointId(null);
     setEditingPolygonId(null);
     setDraftMarker(null);
+    setSelectedMarkerId(null); // Deselect on cancel
   };
 
   const handlePointDrag = (id, yaw, pitch) => {
