@@ -14,6 +14,7 @@ const PhotoSphereComponent = forwardRef(({
   onViewerDblClick,
   onEditPointDrag,
   onEditPointDelete,
+  onPointDrag,
   drawingMode = 'none',
   editingPolygonId = null
 }, ref) => {
@@ -21,6 +22,7 @@ const PhotoSphereComponent = forwardRef(({
   const viewerRef = useRef(null);
   const markersPluginRef = useRef(null);
   const draggingRef = useRef(null); // { index: number }
+  const draggingPointRef = useRef(null); // { id: string }
   const isDraggingRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
@@ -37,6 +39,7 @@ const PhotoSphereComponent = forwardRef(({
   const onViewerDblClickRef = useRef(onViewerDblClick);
   const onEditPointDragRef = useRef(onEditPointDrag);
   const onEditPointDeleteRef = useRef(onEditPointDelete);
+  const onPointDragRef = useRef(onPointDrag);
   const markersRef = useRef(markers);
   const editingPolygonIdRef = useRef(editingPolygonId);
 
@@ -46,9 +49,10 @@ const PhotoSphereComponent = forwardRef(({
     onViewerDblClickRef.current = onViewerDblClick;
     onEditPointDragRef.current = onEditPointDrag;
     onEditPointDeleteRef.current = onEditPointDelete;
+    onPointDragRef.current = onPointDrag;
     markersRef.current = markers;
     editingPolygonIdRef.current = editingPolygonId;
-  }, [onMarkerClick, onViewerClick, onViewerDblClick, onEditPointDrag, onEditPointDelete, markers, editingPolygonId]);
+  }, [onMarkerClick, onViewerClick, onViewerDblClick, onEditPointDrag, onEditPointDelete, onPointDrag, markers, editingPolygonId]);
 
   // Update cursor when drawing mode changes
   useEffect(() => {
@@ -57,12 +61,13 @@ const PhotoSphereComponent = forwardRef(({
     }
   }, [drawingMode]);
 
-  // Handle vertex dragging
+  // Handle vertex and point dragging
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const handlePointerDown = (e) => {
+      // 1. Check for polygon edit handle
       const handle = e.target.closest('.edit-handle-marker');
       if (handle) {
         const index = parseInt(handle.getAttribute('data-handle-index'), 10);
@@ -77,6 +82,7 @@ const PhotoSphereComponent = forwardRef(({
         return;
       }
 
+      // 2. Check for polygon edit vertex delete
       const deleteBtn = e.target.closest('.edit-delete-marker');
       if (deleteBtn) {
         const index = parseInt(deleteBtn.getAttribute('data-handle-index'), 10);
@@ -85,14 +91,33 @@ const PhotoSphereComponent = forwardRef(({
         }
         e.preventDefault();
         e.stopPropagation();
+        return;
+      }
+
+      // 3. Check for draggable point marker
+      const pointMarker = e.target.closest('.draggable-point-marker');
+      if (pointMarker && drawingMode === 'none' && !editingPolygonIdRef.current) {
+        const markerId = pointMarker.getAttribute('data-marker-id');
+        draggingPointRef.current = { id: markerId };
+        isDraggingRef.current = true;
+        if (viewerRef.current) {
+          viewerRef.current.setOption('mousemove', false); // Disable panorama panning
+          viewerRef.current.setOption('moveSpeed', 0); // Lock movement speed
+        }
+        e.preventDefault();
+        e.stopPropagation();
       }
     };
 
     const handlePointerMove = (e) => {
-      if (draggingRef.current !== null && viewerRef.current && markersPluginRef.current) {
-        const rect = container.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+      if (!viewerRef.current || !markersPluginRef.current) return;
+
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Case A: Dragging a polygon edit handle
+      if (draggingRef.current !== null) {
         try {
           const position = viewerRef.current.dataHelper.viewerCoordsToSphericalCoords({ x, y });
           if (position) {
@@ -131,11 +156,39 @@ const PhotoSphereComponent = forwardRef(({
           console.error("Error converting coordinate:", err);
         }
       }
+
+      // Case B: Dragging a point marker
+      if (draggingPointRef.current !== null) {
+        try {
+          const position = viewerRef.current.dataHelper.viewerCoordsToSphericalCoords({ x, y });
+          if (position) {
+            const { yaw, pitch } = position;
+            const markerId = draggingPointRef.current.id;
+
+            // 1. Update marker position in viewer instantly (defer render)
+            markersPluginRef.current.updateMarker({
+              id: markerId,
+              position: { yaw, pitch }
+            }, false);
+
+            // Redraw
+            markersPluginRef.current.renderMarkers();
+
+            // 2. Notify parent state
+            if (onPointDragRef.current) {
+              onPointDragRef.current(markerId, yaw, pitch);
+            }
+          }
+        } catch (err) {
+          console.error("Error converting coordinate:", err);
+        }
+      }
     };
 
     const handlePointerUp = () => {
-      if (draggingRef.current !== null) {
+      if (draggingRef.current !== null || draggingPointRef.current !== null) {
         draggingRef.current = null;
+        draggingPointRef.current = null;
         isDraggingRef.current = false;
         if (viewerRef.current) {
           viewerRef.current.setOption('mousemove', true); // Re-enable panorama panning

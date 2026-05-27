@@ -31,22 +31,21 @@ const INITIAL_MARKERS = [
   },
   {
     id: 'html-bubble',
+    type: 'point',
+    title: '自定义气泡框',
+    color: '#ffc107',
+    icon: '💬',
     position: { pitch: 0.1, yaw: 1.5 },
-    html: '<div style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3); font-weight: bold; color: #333; display: inline-block;">💬 自定义气泡框</div>',
-    anchor: 'bottom center',
-    size: { width: 140, height: 40 },
     tooltip: 'HTML 自定义气泡'
   },
   {
     id: 'text-marker',
+    type: 'point',
+    title: '文本标记',
+    color: '#007bff',
+    icon: '📍',
     position: { pitch: -0.2, yaw: 3.14 },
-    html: '<div style="color: yellow; font-size: 24px; font-weight: bold; text-shadow: 1px 1px 2px black;">📍 文本标记</div>',
-    anchor: 'center',
-    size: { width: 150, height: 35 },
-    tooltip: {
-      content: '简单的文本标记',
-      position: 'top'
-    }
+    tooltip: '简单的文本标记'
   }
 ];
 
@@ -94,6 +93,7 @@ function App() {
   const [drawingMode, setDrawingMode] = useState('none'); // 'none', 'polygon', 'point'
   const [draftPoints, setDraftPoints] = useState([]); // array of [yaw, pitch]
   const [editingPolygonId, setEditingPolygonId] = useState(null);
+  const [editingPointId, setEditingPointId] = useState(null);
 
   const panoramaUrl = '/sphere.jpg';
 
@@ -118,7 +118,15 @@ function App() {
     }
 
     if (drawingMode !== 'none') return; // Disable standard marker clicks while drawing
-    setClickedMarker(marker.id);
+    
+    // Auto-edit point marker on click
+    const targetMarker = markers.find(m => m.id === marker.id);
+    if (targetMarker && targetMarker.type === 'point') {
+      setEditingPointId(marker.id);
+      setEditingPolygonId(null);
+    } else {
+      setClickedMarker(marker.id);
+    }
   };
 
   const handleViewerClick = (data) => {
@@ -129,13 +137,16 @@ function App() {
     if (drawingMode === 'point') {
       const newMarker = {
         id: `point-${Date.now()}`,
+        type: 'point',
+        title: '新建标记点',
+        color: '#3b82f6',
+        icon: '📍',
         position: { pitch, yaw },
-        html: '<div style="background: red; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px black;"></div>',
-        anchor: 'center',
         tooltip: '自定义绘制点'
       };
       setMarkers(prev => [...prev, newMarker]);
       setDrawingMode('none');
+      setEditingPointId(newMarker.id); // Automatically edit newly created point
     } else if (drawingMode === 'polygon') {
       setDraftPoints(prev => [...prev, [yaw, pitch]]);
     }
@@ -190,10 +201,38 @@ function App() {
 
   const handleToggleEdit = (id) => {
     setEditingPolygonId(editingPolygonId === id ? null : id);
+    setEditingPointId(null);
+  };
+
+  const handleToggleEditPoint = (id) => {
+    setEditingPointId(editingPointId === id ? null : id);
+    setEditingPolygonId(null);
+  };
+
+  const handleUpdatePoint = (id, updates) => {
+    setMarkers(prev => prev.map(m => {
+      if (m.id === id) {
+        return { ...m, ...updates };
+      }
+      return m;
+    }));
+  };
+
+  const handlePointDrag = (id, yaw, pitch) => {
+    setMarkers(prev => prev.map(m => {
+      if (m.id === id) {
+        return {
+          ...m,
+          position: { yaw, pitch }
+        };
+      }
+      return m;
+    }));
   };
 
   const handleDeleteMarker = (id) => {
     if (editingPolygonId === id) setEditingPolygonId(null);
+    if (editingPointId === id) setEditingPointId(null);
     setMarkers(prev => prev.filter(marker => marker.id !== id));
   };
 
@@ -266,8 +305,29 @@ function App() {
 
   // Combine saved markers with the dynamic draft shape and edit handles
   const displayMarkers = useMemo(() => {
-    const list = [...markers];
+    // 1. Transform raw point markers with dynamic HTML
+    const list = markers.map(m => {
+      if (m.type === 'point') {
+        const isEditing = editingPointId === m.id;
+        return {
+          ...m,
+          html: `
+            <div class="draggable-point-marker" data-marker-id="${m.id}" style="display: flex; flex-direction: column; align-items: center; cursor: grab; user-select: none;">
+              <div class="marker-icon-wrapper" style="background: ${m.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditing ? '#ffc107' : 'white'}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${isEditing ? 'scale(1.15)' : 'none'};">
+                ${m.icon || '📍'}
+              </div>
+              <div class="marker-title" style="background: ${isEditing ? '#ffc107' : 'rgba(0,0,0,0.8)'}; color: ${isEditing ? '#000' : '#fff'}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
+                ${m.title || '未命名'}
+              </div>
+            </div>
+          `,
+          anchor: 'bottom center'
+        };
+      }
+      return m;
+    });
     
+    // 2. Inject drafting markers
     if (drawingMode === 'polygon' && draftPoints.length > 0) {
       draftPoints.forEach((pt, index) => {
         list.push({
@@ -304,6 +364,7 @@ function App() {
       }
     }
 
+    // 3. Inject edit vertices for active polygon editing
     if (editingPolygonId) {
       const activePolygon = markers.find(m => m.id === editingPolygonId);
       if (activePolygon && activePolygon.polygon) {
@@ -327,7 +388,7 @@ function App() {
     }
 
     return list;
-  }, [markers, drawingMode, draftPoints, editingPolygonId]);
+  }, [markers, drawingMode, draftPoints, editingPolygonId, editingPointId]);
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1400px', margin: '0 auto', display: 'flex', gap: '20px' }}>
@@ -335,7 +396,7 @@ function App() {
       {/* Left Panel: Viewer */}
       <div style={{ flex: 1, minWidth: '0' }}>
         <h1>Photo Sphere Viewer - 画板管理台</h1>
-        <p>支持多边形编辑，可以拖动点、删除点（点击红叉）、以及在线条上双击添加点。</p>
+        <p>支持多边形顶点拖放编辑，点标记自由拖放，点标记名称、图标及配色实时编辑。</p>
         
         <EditorToolbar
           drawingMode={drawingMode}
@@ -357,6 +418,7 @@ function App() {
             onViewerDblClick={handleViewerDblClick}
             onEditPointDrag={handleEditPointDrag}
             onEditPointDelete={handleEditPointDelete}
+            onPointDrag={handlePointDrag}
             drawingMode={drawingMode}
             editingPolygonId={editingPolygonId}
           />
@@ -367,9 +429,12 @@ function App() {
       <MarkerList
         markers={markers}
         editingPolygonId={editingPolygonId}
+        editingPointId={editingPointId}
         onGotoMarker={gotoMarker}
         onToggleEdit={handleToggleEdit}
+        onToggleEditPoint={handleToggleEditPoint}
         onDeleteMarker={handleDeleteMarker}
+        onUpdatePoint={handleUpdatePoint}
       />
 
     </div>
