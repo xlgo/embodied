@@ -19,11 +19,11 @@ const INITIAL_MARKERS = [
       [6.0094, -0.0169],
       [6.0207, 0.0387],
     ],
-    svgStyle: {
-      fill: 'rgba(255, 0, 0, 0.2)',
-      stroke: 'rgba(255, 0, 0, 0.8)',
-      strokeWidth: '2px',
-    },
+    strokeColor: '#ff0000',
+    strokeWidth: 2,
+    fillColor: '#ff0000',
+    fillOpacity: 0.2,
+    fillStyle: 'solid',
     tooltip: {
       content: '这是一个多边形标注 (Polygon Marker)',
       position: 'bottom right',
@@ -86,7 +86,7 @@ function getDistanceToSegment(C, A, B) {
 
 function App() {
   const psvRef = useRef(null);
-  const [clickedMarker, setClickedMarker] = useState(null);
+  const [selectedMarkerId, setSelectedMarkerId] = useState(null);
 
   // Load initial markers from LocalStorage if available
   const [markers, setMarkers] = useState(() => {
@@ -140,13 +140,7 @@ function App() {
     
     const targetMarker = markers.find(m => m.id === marker.id);
     if (targetMarker) {
-      if (targetMarker.type === 'point') {
-        setEditingPointId(marker.id);
-        setEditingPolygonId(null);
-      } else if (targetMarker.polygon) {
-        setEditingPolygonId(marker.id);
-        setEditingPointId(null);
-      }
+      setSelectedMarkerId(marker.id); // Only select, do NOT enter edit mode directly
     }
   };
 
@@ -167,7 +161,8 @@ function App() {
       };
       setMarkers(prev => [...prev, newMarker]);
       setDrawingMode('none');
-      setEditingPointId(newMarker.id); // Automatically edit newly created point
+      setSelectedMarkerId(newMarker.id); // Automatically select newly created point
+      setEditingPointId(newMarker.id); // Directly enter edit mode for configuring it
     } else if (drawingMode === 'polygon') {
       setDraftPoints(prev => [...prev, [yaw, pitch]]);
     }
@@ -193,14 +188,16 @@ function App() {
         const newPolygon = {
           id: `polygon-${Date.now()}`,
           polygon: cleaned,
-          svgStyle: {
-            fill: 'rgba(0, 255, 0, 0.3)',
-            stroke: 'rgba(0, 255, 0, 0.8)',
-            strokeWidth: '2px',
-          },
+          strokeColor: '#00ff00',
+          strokeWidth: 2,
+          fillColor: '#00ff00',
+          fillOpacity: 0.3,
+          fillStyle: 'solid',
           tooltip: '自定义绘制的多边形'
         };
         setMarkers(prev => [...prev, newPolygon]);
+        setSelectedMarkerId(newPolygon.id); // Select
+        setEditingPolygonId(newPolygon.id); // Enter edit mode directly
       } else {
         alert("多边形至少需要3个点！");
       }
@@ -220,6 +217,10 @@ function App() {
     }
   };
 
+  const handleSelectMarker = (id) => {
+    setSelectedMarkerId(id);
+  };
+
   const handleToggleEdit = (id) => {
     setEditingPolygonId(editingPolygonId === id ? null : id);
     setEditingPointId(null);
@@ -231,6 +232,15 @@ function App() {
   };
 
   const handleUpdatePoint = (id, updates) => {
+    setMarkers(prev => prev.map(m => {
+      if (m.id === id) {
+        return { ...m, ...updates };
+      }
+      return m;
+    }));
+  };
+
+  const handleUpdatePolygon = (id, updates) => {
     setMarkers(prev => prev.map(m => {
       if (m.id === id) {
         return { ...m, ...updates };
@@ -254,6 +264,7 @@ function App() {
   const handleDeleteMarker = (id) => {
     if (editingPolygonId === id) setEditingPolygonId(null);
     if (editingPointId === id) setEditingPointId(null);
+    if (selectedMarkerId === id) setSelectedMarkerId(null);
     setMarkers(prev => prev.filter(marker => marker.id !== id));
   };
 
@@ -328,21 +339,54 @@ function App() {
   const displayMarkers = useMemo(() => {
     // 1. Transform raw point markers with dynamic HTML
     const list = markers.map(m => {
+      const isSelected = selectedMarkerId === m.id;
+      const isEditing = (editingPointId === m.id || editingPolygonId === m.id);
+
       if (m.type === 'point') {
-        const isEditing = editingPointId === m.id;
+        const isEditingPoint = editingPointId === m.id;
         return {
           ...m,
           html: `
-            <div class="draggable-point-marker" data-marker-id="${m.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
-              <div class="marker-icon-wrapper" style="background: ${m.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditing ? '#ffc107' : 'white'}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${isEditing ? 'scale(1.15)' : 'none'};">
+            <div class="draggable-point-marker" data-marker-id="${m.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditingPoint ? 'grab' : 'pointer'}; user-select: none;">
+              <div class="marker-icon-wrapper" style="background: ${m.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'white')}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${(isEditingPoint || isSelected) ? 'scale(1.15)' : 'none'};">
                 ${m.icon || '📍'}
               </div>
-              <div class="marker-title" style="background: ${isEditing ? '#ffc107' : 'rgba(0,0,0,0.8)'}; color: ${isEditing ? '#000' : '#fff'}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
+              <div class="marker-title" style="background: ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'rgba(0,0,0,0.8)')}; color: ${isEditingPoint ? '#000' : '#fff'}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
                 ${m.title || '未命名'}
               </div>
             </div>
           `,
           anchor: 'bottom center'
+        };
+      } else if (m.polygon) {
+        // Build style dynamically based on polygon properties
+        const strokeColor = m.strokeColor || '#ff0000';
+        const strokeWidth = `${m.strokeWidth || 2}px`;
+        const fillColor = m.fillColor || '#ff0000';
+        const fillOpacity = m.fillOpacity !== undefined ? m.fillOpacity : 0.2;
+        const fillStyle = m.fillStyle || 'solid';
+
+        const hexToRgba = (hex, alpha) => {
+          let c = hex.substring(1);
+          if (c.length === 3) {
+            c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+          }
+          const r = parseInt(c.substring(0, 2), 16);
+          const g = parseInt(c.substring(2, 4), 16);
+          const b = parseInt(c.substring(4, 6), 16);
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+
+        const stroke = hexToRgba(strokeColor, 0.8);
+        const fill = fillStyle === 'none' ? 'none' : hexToRgba(fillColor, fillOpacity);
+
+        return {
+          ...m,
+          svgStyle: {
+            fill: isEditing ? 'rgba(255, 193, 7, 0.3)' : (isSelected ? hexToRgba(fillColor, Math.min(1, fillOpacity + 0.15)) : fill),
+            stroke: isEditing ? 'rgba(255, 193, 7, 1)' : (isSelected ? 'rgba(0, 123, 255, 1)' : stroke),
+            strokeWidth: isEditing ? '4px' : (isSelected ? '4px' : strokeWidth)
+          }
         };
       }
       return m;
@@ -409,7 +453,7 @@ function App() {
     }
 
     return list;
-  }, [markers, drawingMode, draftPoints, editingPolygonId, editingPointId]);
+  }, [markers, drawingMode, draftPoints, editingPolygonId, editingPointId, selectedMarkerId]);
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1400px', margin: '0 auto', display: 'flex', gap: '20px' }}>
@@ -417,7 +461,7 @@ function App() {
       {/* Left Panel: Viewer */}
       <div style={{ flex: 1, minWidth: '0' }}>
         <h1>Photo Sphere Viewer - 画板管理台</h1>
-        <p>支持多边形顶点拖放编辑，点标记自由拖放，点标记名称、图标及配色实时编辑。</p>
+        <p>支持多边形顶点与配色编辑，点标记自由拖放，点标记名称、图标及配色实时编辑。</p>
         
         <EditorToolbar
           drawingMode={drawingMode}
@@ -425,16 +469,19 @@ function App() {
             setDrawingMode('polygon');
             setEditingPolygonId(null);
             setEditingPointId(null);
+            setSelectedMarkerId(null);
           }}
           onStartPoint={() => {
             setDrawingMode('point');
             setEditingPolygonId(null);
             setEditingPointId(null);
+            setSelectedMarkerId(null);
           }}
           onRestoreDefault={() => {
             setMarkers(INITIAL_MARKERS);
             setEditingPolygonId(null);
             setEditingPointId(null);
+            setSelectedMarkerId(null);
           }}
           onFinishPolygon={finishPolygon}
           onCancelDrawing={cancelDrawing}
@@ -462,13 +509,16 @@ function App() {
       {/* Right Panel: List */}
       <MarkerList
         markers={markers}
+        selectedMarkerId={selectedMarkerId}
         editingPolygonId={editingPolygonId}
         editingPointId={editingPointId}
         onGotoMarker={gotoMarker}
+        onSelectMarker={handleSelectMarker}
         onToggleEdit={handleToggleEdit}
         onToggleEditPoint={handleToggleEditPoint}
         onDeleteMarker={handleDeleteMarker}
         onUpdatePoint={handleUpdatePoint}
+        onUpdatePolygon={handleUpdatePolygon}
       />
 
     </div>
