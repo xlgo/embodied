@@ -267,6 +267,7 @@ function App() {
       setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
       setEditingPolygonId(id);
       setEditingPointId(null);
+      setSelectedMarkerId(id); // Auto-select when starting edit mode
     } else {
       // Exit without saving
       if (draftMarker) {
@@ -289,6 +290,7 @@ function App() {
       setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
       setEditingPointId(id);
       setEditingPolygonId(null);
+      setSelectedMarkerId(id); // Auto-select when starting edit mode
     } else {
       // Exit without saving
       if (draftMarker) {
