@@ -217,23 +217,36 @@ function App() {
   };
 
   const handleSelectMarker = (id) => {
-    // If we are currently editing another marker, we should discard the draft
-    if (editingPolygonId || editingPointId) {
-      setEditingPolygonId(null);
-      setEditingPointId(null);
-      setDraftMarker(null);
+    if (selectedMarkerId === id) return;
+
+    // Check if there are unsaved changes
+    if (draftMarker) {
+      const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并切换吗？");
+      if (!confirmDiscard) return;
     }
+
+    setEditingPolygonId(null);
+    setEditingPointId(null);
+    setDraftMarker(null);
     setSelectedMarkerId(id);
   };
 
   const handleToggleEdit = (id) => {
     if (editingPolygonId !== id) {
+      if (draftMarker) {
+        const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并切换吗？");
+        if (!confirmDiscard) return;
+      }
       const target = markers.find(m => m.id === id);
       setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
       setEditingPolygonId(id);
       setEditingPointId(null);
     } else {
       // Exit without saving
+      if (draftMarker) {
+        const confirmDiscard = window.confirm("当前有未保存的修改，确定要关闭编辑并放弃修改吗？");
+        if (!confirmDiscard) return;
+      }
       setEditingPolygonId(null);
       setDraftMarker(null);
     }
@@ -241,12 +254,20 @@ function App() {
 
   const handleToggleEditPoint = (id) => {
     if (editingPointId !== id) {
+      if (draftMarker) {
+        const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并切换吗？");
+        if (!confirmDiscard) return;
+      }
       const target = markers.find(m => m.id === id);
       setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
       setEditingPointId(id);
       setEditingPolygonId(null);
     } else {
       // Exit without saving
+      if (draftMarker) {
+        const confirmDiscard = window.confirm("当前有未保存的修改，确定要关闭编辑并放弃修改吗？");
+        if (!confirmDiscard) return;
+      }
       setEditingPointId(null);
       setDraftMarker(null);
     }
@@ -273,6 +294,10 @@ function App() {
   };
 
   const handleCancelEdit = () => {
+    if (draftMarker) {
+      const confirmDiscard = window.confirm("确定要取消并放弃此次修改吗？");
+      if (!confirmDiscard) return;
+    }
     setEditingPointId(null);
     setEditingPolygonId(null);
     setDraftMarker(null);
@@ -492,6 +517,10 @@ function App() {
         <EditorToolbar
           drawingMode={drawingMode}
           onStartPolygon={() => {
+            if (draftMarker) {
+              const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并开始绘制吗？");
+              if (!confirmDiscard) return;
+            }
             setDrawingMode('polygon');
             setEditingPolygonId(null);
             setEditingPointId(null);
@@ -499,6 +528,10 @@ function App() {
             setDraftMarker(null);
           }}
           onStartPoint={() => {
+            if (draftMarker) {
+              const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并开始绘制吗？");
+              if (!confirmDiscard) return;
+            }
             setDrawingMode('point');
             setEditingPolygonId(null);
             setEditingPointId(null);
@@ -506,6 +539,10 @@ function App() {
             setDraftMarker(null);
           }}
           onRestoreDefault={() => {
+            if (draftMarker) {
+              const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并恢复默认吗？");
+              if (!confirmDiscard) return;
+            }
             setMarkers(INITIAL_MARKERS);
             setEditingPolygonId(null);
             setEditingPointId(null);
