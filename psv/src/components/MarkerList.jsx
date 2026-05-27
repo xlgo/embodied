@@ -260,31 +260,37 @@ export default function MarkerList({
                 
                 {isPoint ? (
                   <button 
-                    onClick={() => onToggleEditPoint(m.id)} 
-                    disabled={!isSelected}
+                    onClick={() => {
+                      if (!isSelected) {
+                        onSelectMarker(m.id);
+                      }
+                      onToggleEditPoint(m.id);
+                    }} 
                     style={{
                       ...btnStyle, 
                       background: isEditingPoint ? '#ffc107' : 'white', 
                       borderColor: isEditingPoint ? '#ffc107' : '#ccc',
-                      opacity: isSelected ? 1 : 0.4,
-                      cursor: isSelected ? 'pointer' : 'not-allowed'
+                      cursor: 'pointer'
                     }}
-                    title={isSelected ? '开始编辑' : '请先点击选中该标记点以开启编辑'}
+                    title="开始编辑属性"
                   >
                     {isEditingPoint ? '✅ 完成' : '✏️ 编辑'}
                   </button>
                 ) : (
                   <button 
-                    onClick={() => onToggleEdit(m.id)} 
-                    disabled={!isSelected}
+                    onClick={() => {
+                      if (!isSelected) {
+                        onSelectMarker(m.id);
+                      }
+                      onToggleEdit(m.id);
+                    }} 
                     style={{
                       ...btnStyle, 
                       background: isEditingPolygon ? '#ffc107' : 'white', 
                       borderColor: isEditingPolygon ? '#ffc107' : '#ccc',
-                      opacity: isSelected ? 1 : 0.4,
-                      cursor: isSelected ? 'pointer' : 'not-allowed'
+                      cursor: 'pointer'
                     }}
-                    title={isSelected ? '开始编辑' : '请先点击选中该多边形以开启编辑'}
+                    title="开始编辑多边形顶点与样式"
                   >
                     {isEditingPolygon ? '✅ 完成' : '✏️ 编辑'}
                   </button>
