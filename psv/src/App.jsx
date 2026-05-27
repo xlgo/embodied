@@ -117,7 +117,7 @@ function App() {
   const panoramaUrl = '/sphere.jpg';
 
   const handleMarkerClick = (marker) => {
-    // Check if we are currently editing a polygon
+    // Check if we are currently editing a polygon and clicked its sub-handles
     if (editingPolygonId) {
       if (marker.id.startsWith('delete-handle-')) {
         const pointIndex = parseInt(marker.id.split('-').pop(), 10);
@@ -138,13 +138,15 @@ function App() {
 
     if (drawingMode !== 'none') return; // Disable standard marker clicks while drawing
     
-    // Auto-edit point marker on click
     const targetMarker = markers.find(m => m.id === marker.id);
-    if (targetMarker && targetMarker.type === 'point') {
-      setEditingPointId(marker.id);
-      setEditingPolygonId(null);
-    } else {
-      setClickedMarker(marker.id);
+    if (targetMarker) {
+      if (targetMarker.type === 'point') {
+        setEditingPointId(marker.id);
+        setEditingPolygonId(null);
+      } else if (targetMarker.polygon) {
+        setEditingPolygonId(marker.id);
+        setEditingPointId(null);
+      }
     }
   };
 
@@ -419,9 +421,21 @@ function App() {
         
         <EditorToolbar
           drawingMode={drawingMode}
-          onStartPolygon={() => setDrawingMode('polygon')}
-          onStartPoint={() => setDrawingMode('point')}
-          onRestoreDefault={() => setMarkers(INITIAL_MARKERS)}
+          onStartPolygon={() => {
+            setDrawingMode('polygon');
+            setEditingPolygonId(null);
+            setEditingPointId(null);
+          }}
+          onStartPoint={() => {
+            setDrawingMode('point');
+            setEditingPolygonId(null);
+            setEditingPointId(null);
+          }}
+          onRestoreDefault={() => {
+            setMarkers(INITIAL_MARKERS);
+            setEditingPolygonId(null);
+            setEditingPointId(null);
+          }}
           onFinishPolygon={finishPolygon}
           onCancelDrawing={cancelDrawing}
         />
