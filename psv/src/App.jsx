@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import PhotoSphereComponent from './PhotoSphereComponent';
 import EditorToolbar from './components/EditorToolbar';
 import MarkerList from './components/MarkerList';
@@ -87,7 +87,26 @@ function getDistanceToSegment(C, A, B) {
 function App() {
   const psvRef = useRef(null);
   const [clickedMarker, setClickedMarker] = useState(null);
-  const [markers, setMarkers] = useState(INITIAL_MARKERS);
+
+  // Load initial markers from LocalStorage if available
+  const [markers, setMarkers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('psv_markers');
+      return saved ? JSON.parse(saved) : INITIAL_MARKERS;
+    } catch (e) {
+      console.error("Failed to load markers from localStorage:", e);
+      return INITIAL_MARKERS;
+    }
+  });
+
+  // Save markers to LocalStorage on changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('psv_markers', JSON.stringify(markers));
+    } catch (e) {
+      console.error("Failed to save markers to localStorage:", e);
+    }
+  }, [markers]);
 
   // Drawing & Editing state
   const [drawingMode, setDrawingMode] = useState('none'); // 'none', 'polygon', 'point'
