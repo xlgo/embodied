@@ -119,6 +119,8 @@ function App() {
 
   const panoramaUrl = '/sphere.jpg';
 
+  const lastMarkerClickRef = useRef({ id: null, time: 0 });
+
   const handleMarkerClick = (marker) => {
     // Check if we are currently editing a polygon and clicked its sub-handles
     if (editingPolygonId) {
@@ -138,7 +140,31 @@ function App() {
         return; // Click on edit handle does nothing (dragging updates position)
       }
     }
-    // Clicking standard markers in the viewer does NOT select it now (only select via sidebar list)
+
+    if (drawingMode !== 'none') return; // Disable standard marker clicks while drawing
+
+    // Double click detection
+    const now = Date.now();
+    const lastClick = lastMarkerClickRef.current;
+    
+    if (lastClick.id === marker.id && (now - lastClick.time) < 300) {
+      // Double clicked! Select the marker
+      const targetMarker = markers.find(m => m.id === marker.id);
+      if (targetMarker) {
+        // If we are currently editing another marker, discard changes and switch selection
+        if (editingPolygonId || editingPointId) {
+          setEditingPolygonId(null);
+          setEditingPointId(null);
+          setDraftMarker(null);
+        }
+        setSelectedMarkerId(marker.id);
+      }
+      // Reset
+      lastMarkerClickRef.current = { id: null, time: 0 };
+    } else {
+      // First click
+      lastMarkerClickRef.current = { id: marker.id, time: now };
+    }
   };
 
   const handleViewerClick = (data) => {
