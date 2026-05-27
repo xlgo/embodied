@@ -98,7 +98,23 @@ const PhotoSphereComponent = forwardRef(({
       const pointMarker = e.target.closest('.draggable-point-marker');
       if (pointMarker && drawingMode === 'none' && !editingPolygonIdRef.current) {
         const markerId = pointMarker.getAttribute('data-marker-id');
-        draggingPointRef.current = { id: markerId };
+        let offset = { yaw: 0, pitch: 0 };
+        const markerObj = markersRef.current.find(m => m.id === markerId);
+        if (markerObj && markerObj.position && viewerRef.current) {
+          const rect = container.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          try {
+            const clickPos = viewerRef.current.dataHelper.viewerCoordsToSphericalCoords({ x, y });
+            if (clickPos) {
+              offset.yaw = markerObj.position.yaw - clickPos.yaw;
+              offset.pitch = markerObj.position.pitch - clickPos.pitch;
+            }
+          } catch (err) {
+            console.error("Error calculating click offset:", err);
+          }
+        }
+        draggingPointRef.current = { id: markerId, offset };
         isDraggingRef.current = true;
         if (viewerRef.current) {
           viewerRef.current.setOption('mousemove', false); // Disable panorama panning
@@ -162,12 +178,16 @@ const PhotoSphereComponent = forwardRef(({
         try {
           const position = viewerRef.current.dataHelper.viewerCoordsToSphericalCoords({ x, y });
           if (position) {
-            const { yaw, pitch } = position;
-            const markerId = draggingPointRef.current.id;
+            let { yaw, pitch } = position;
+            const { id, offset } = draggingPointRef.current;
+
+            // Apply calculated offset to prevent sudden jumping
+            yaw += offset.yaw;
+            pitch += offset.pitch;
 
             // 1. Update marker position in viewer instantly (defer render)
             markersPluginRef.current.updateMarker({
-              id: markerId,
+              id: id,
               position: { yaw, pitch }
             }, false);
 
@@ -176,7 +196,7 @@ const PhotoSphereComponent = forwardRef(({
 
             // 2. Notify parent state
             if (onPointDragRef.current) {
-              onPointDragRef.current(markerId, yaw, pitch);
+              onPointDragRef.current(id, yaw, pitch);
             }
           }
         } catch (err) {
