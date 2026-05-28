@@ -211,7 +211,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
 
   // Floating Editor Panel Visibility, Positions & Dimension
-  const [editorVisible, setEditorVisible] = useState(true);
+  const [editorVisible, setEditorVisible] = useState(false);
   const [panelPos, setPanelPos] = useState({ x: 680, y: 30 });
   const [panelHeight, setPanelHeight] = useState(385);
 
