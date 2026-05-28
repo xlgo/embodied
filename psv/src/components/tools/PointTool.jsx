@@ -1,3 +1,5 @@
+import React, { useState } from 'react';
+
 // 预设图标列表，采用 SVG 路径并定义预设颜色以匹配设计图
 const presetIcons = [
   {
