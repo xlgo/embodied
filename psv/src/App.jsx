@@ -198,6 +198,12 @@ function App() {
     label: true
   });
 
+  // 左侧设备树相关状态与交互控制
+  const [treeVisible, setTreeVisible] = useState(true);
+  const [selectedNodeId, setSelectedNodeId] = useState('2-1-1');
+  const [expandedNodes, setExpandedNodes] = useState({ '2': true, '2-1': true });
+  const [treeSearchQuery, setTreeSearchQuery] = useState('');
+
   // Draft state representing the marker currently under active edit/creation (before hitting Save)
   const [draftMarker, setDraftMarker] = useState(null);
 
@@ -961,38 +967,7 @@ function App() {
       color: '#f7fafc'
     }}>
       
-      {/* Header bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1c1f2e', paddingBottom: '16px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', background: 'linear-gradient(135deg, #00f5d4 0%, #00e5ff 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            🏷️ 智慧全景标签标绘工具
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#a0aec0' }}>
-            点击“标绘工具栏”或右键菜单进行标绘配置。您可以边画标号边在配置面板中调整它们的外观参数。
-          </p>
-        </div>
-        
-        {/* Toggle Edit Toolbar button */}
-        {!editorVisible && drawingMode === 'none' && (
-          <button
-            onClick={handleStartEditToolbar}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #00f5d4 0%, #00e5ff 100%)',
-              color: '#0d0f14',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(0, 229, 255, 0.25)',
-              transition: 'all 0.2s'
-            }}
-          >
-            ✏️ 打开标绘工具栏
-          </button>
-        )}
-      </div>
+
 
       {/* Main Workspace */}
       <div style={{ display: 'flex', gap: '24px', flex: 1 }}>
@@ -1011,6 +986,237 @@ function App() {
           
           {/* 左侧垂直悬浮功能过滤器工具栏独立组件 */}
           <FilterToolbar activeFilters={activeFilters} onChange={setActiveFilters} />
+
+          {/* 左上角标题、设备选择器与设备树控制台 */}
+          <div style={{
+            position: 'absolute',
+            left: '20px',
+            top: '20px',
+            zIndex: 9982,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            width: '320px',
+            pointerEvents: 'none'
+          }}>
+            {/* 1. 顶部标题栏 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              pointerEvents: 'auto',
+              background: 'linear-gradient(90deg, rgba(22, 25, 34, 0.9) 0%, rgba(22, 25, 34, 0.4) 100%)',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              backdropFilter: 'blur(4px)',
+              width: 'max-content'
+            }}>
+              <div style={{
+                width: '28px',
+                height: '28px',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                color: '#a0aec0',
+                border: '1px solid rgba(255,255,255,0.1)',
+                fontWeight: 'bold'
+              }}>
+                logo
+              </div>
+              <span style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                letterSpacing: '1px',
+                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+              }}>
+                黑龙江铁塔全域感知实景调度平台
+              </span>
+            </div>
+
+            {/* 2. 当前选中设备栏 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'rgba(22, 25, 34, 0.85)',
+              backdropFilter: 'blur(8px)',
+              border: '1.2px solid rgba(0, 223, 182, 0.4)',
+              borderRadius: '20px',
+              padding: '6px 12px',
+              pointerEvents: 'auto',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00dfb6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span style={{
+                  fontSize: '11px',
+                  color: '#ffffff',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden'
+                }}>
+                  黑龙江铁塔/呼兰河水务/湖蓝大顶子林场
+                </span>
+              </div>
+              <button
+                onClick={() => setTreeVisible(prev => !prev)}
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: 'none',
+                  color: '#ffffff',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  padding: 0,
+                  transform: treeVisible ? 'rotate(180deg)' : 'rotate(0deg)',
+                  flexShrink: 0
+                }}
+                title={treeVisible ? "收起设备树" : "展开设备树"}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 3. 设备树面板 */}
+            {treeVisible && (
+              <div style={{
+                background: 'rgba(22, 25, 34, 0.9)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(46, 53, 79, 0.8)',
+                borderRadius: '10px',
+                padding: '12px',
+                pointerEvents: 'auto',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                {/* 搜索输入 */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" strokeWidth="2.5" style={{ position: 'absolute', left: '10px' }}>
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="请输入搜索通道点位"
+                    value={treeSearchQuery}
+                    onChange={(e) => setTreeSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.25)',
+                      border: '1px solid rgba(46, 53, 79, 0.6)',
+                      borderRadius: '6px',
+                      padding: '6px 10px 6px 28px',
+                      fontSize: '11px',
+                      color: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* 树节点列表 */}
+                <div style={{
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1px'
+                }}>
+                  {/* 一级节点 A */}
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#cbd5e0' }}>
+                    <span style={{ fontSize: '8px', color: '#718096', marginRight: '8px' }}>▶</span>
+                    <span>一级树导航</span>
+                  </div>
+
+                  <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.02)' }} />
+
+                  {/* 一级节点 B (展开/折叠) */}
+                  <div>
+                    <div
+                      onClick={() => setExpandedNodes(prev => ({ ...prev, '2': !prev['2'] }))}
+                      style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#cbd5e0' }}
+                    >
+                      <span style={{ fontSize: '8px', color: '#cbd5e0', marginRight: '8px', transform: expandedNodes['2'] ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.15s' }}>▶</span>
+                      <span>一级树导航</span>
+                    </div>
+
+                    {expandedNodes['2'] && (
+                      <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column' }}>
+                        {/* 二级节点 */}
+                        <div>
+                          <div
+                            onClick={() => setExpandedNodes(prev => ({ ...prev, '2-1': !prev['2-1'] }))}
+                            style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#cbd5e0' }}
+                          >
+                            <span style={{ fontSize: '8px', color: '#cbd5e0', marginRight: '8px', transform: expandedNodes['2-1'] ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.15s' }}>▶</span>
+                            <span>二级树导航</span>
+                          </div>
+
+                          {expandedNodes['2-1'] && (
+                            <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                              {/* 三级叶子节点列表 */}
+                              {[1, 2, 3, 4, 5, 6].map((num) => {
+                                const id = `2-1-${num}`;
+                                const isSelected = selectedNodeId === id;
+                                return (
+                                  <div
+                                    key={id}
+                                    onClick={() => setSelectedNodeId(id)}
+                                    style={{
+                                      padding: '5px 12px',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontSize: '11px',
+                                      color: isSelected ? '#00dfb6' : '#a0aec0',
+                                      backgroundColor: isSelected ? 'rgba(0, 223, 182, 0.12)' : 'transparent',
+                                      fontWeight: isSelected ? 'bold' : 'normal',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
+                                    三级树导航
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.02)' }} />
+
+                  {/* 一级节点后续 */}
+                  {[3, 4, 5, 6, 7, 8].map((num) => (
+                    <div key={num} style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#cbd5e0' }}>
+                      <span style={{ fontSize: '8px', color: '#718096', marginRight: '8px' }}>▶</span>
+                      <span>一级树导航</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <PhotoSphereComponent
             ref={psvRef}
@@ -1033,14 +1239,41 @@ function App() {
             editingPointId={editingPointId}
           />
 
-          {/* 右上角时间与用户信息悬浮组件 */}
+          {/* 右上角时间与用户信息悬浮组件，并在下方加入浮动的打开标绘工具栏按钮 */}
           <div style={{
             position: 'absolute',
             top: '20px',
             right: '20px',
-            zIndex: 9990
+            zIndex: 9990,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '10px'
           }}>
             <UserStatusWidget />
+            {!editorVisible && drawingMode === 'none' && (
+              <button
+                onClick={handleStartEditToolbar}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  border: '1.2px solid rgba(0, 223, 182, 0.4)',
+                  background: 'rgba(22, 25, 34, 0.85)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#00dfb6',
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ✏️ 打开标绘工具栏
+              </button>
+            )}
           </div>
 
           {/* Prompt banner shown while drawing */}
