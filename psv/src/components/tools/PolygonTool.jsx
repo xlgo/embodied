@@ -33,8 +33,8 @@ export default {
           onChange={(val) => onUpdateDraft({ strokeColor: val })}
         />
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框线条粗细</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框线条粗细</span>
           <StepInput
             value={draftMarker?.strokeWidth || 2}
             onChange={(val) => onUpdateDraft({ strokeWidth: val })}
@@ -44,12 +44,13 @@ export default {
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span className="form-label">填充方式</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>填充方式</span>
           <select
             className="custom-select"
             value={draftMarker?.fillStyle || 'solid'}
             onChange={(e) => onUpdateDraft({ fillStyle: e.target.value })}
+            style={{ flex: 1 }}
           >
             <option value="solid">实色填充</option>
             <option value="none">无填充 (仅保留边框)</option>
@@ -64,20 +65,22 @@ export default {
               onChange={(val) => onUpdateDraft({ fillColor: val })}
             />
             
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#a0aec0', marginBottom: '4px' }}>
-                <span>填充不透明度</span>
-                <span style={{ fontFamily: 'monospace' }}>{Math.round((draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.25) * 100)}%</span>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>填充不透明度</span>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.25}
+                  onChange={(e) => onUpdateDraft({ fillOpacity: parseFloat(e.target.value) })}
+                  style={{ flex: 1, cursor: 'pointer', height: '6px', background: '#2e354f', outline: 'none', borderRadius: '3px' }}
+                />
+                <span style={{ fontSize: '12px', color: '#a0aec0', fontFamily: 'monospace', width: '36px', textAlign: 'right' }}>
+                  {Math.round((draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.25) * 100)}%
+                </span>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.25}
-                onChange={(e) => onUpdateDraft({ fillOpacity: parseFloat(e.target.value) })}
-                style={{ width: '100%', cursor: 'pointer', height: '6px', background: '#2e354f', outline: 'none', borderRadius: '3px' }}
-              />
             </div>
           </>
         )}

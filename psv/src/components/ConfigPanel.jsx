@@ -533,22 +533,24 @@ export default function ConfigPanel({
           {isMinimized ? (
             // COMPACT / MINIMIZED LAYOUT (Slide 6)
             <div style={{ flex: 1, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="form-label">{isPoint ? '标题' : '提示文本'}</span>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>{isPoint ? '标题' : '提示文本'}</span>
                 <input
                   type="text"
                   className="form-input"
                   placeholder="请输入"
                   value={draftMarker?.title || draftMarker?.tooltip || ''}
                   onChange={(e) => onUpdateDraft(isPoint ? { title: e.target.value } : { tooltip: e.target.value })}
+                  style={{ flex: 1 }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="form-label">业务分类</span>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>业务分类</span>
                 <select
                   className="custom-select"
                   value={draftMarker?.category || 'none'}
                   onChange={(e) => onUpdateDraft({ category: e.target.value })}
+                  style={{ flex: 1 }}
                 >
                   <option value="none">未分类</option>
                   <option value="biz_a">业务分类A</option>
@@ -589,46 +591,50 @@ export default function ConfigPanel({
                 {activeTab === 'basic' && (
                   // Tab 1: Basic Info
                   <>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="form-label">{isPoint ? '标题' : '提示文本'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>{isPoint ? '标题' : '提示文本'}</span>
                       <input
                         type="text"
                         className="form-input"
                         placeholder="请输入"
                         value={draftMarker?.title || draftMarker?.tooltip || ''}
                         onChange={(e) => onUpdateDraft(isPoint ? { title: e.target.value } : { tooltip: e.target.value })}
+                        style={{ flex: 1 }}
                       />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="form-label">业务分类</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>业务分类</span>
                       <select
                         className="custom-select"
                         value={draftMarker?.category || 'none'}
                         onChange={(e) => onUpdateDraft({ category: e.target.value })}
+                        style={{ flex: 1 }}
                       >
                         <option value="none">未分类</option>
                         <option value="biz_a">业务分类A</option>
                         <option value="biz_b">业务分类B</option>
                       </select>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="form-label">图层过滤</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>图层过滤</span>
                       <select
                         className="custom-select"
                         value={draftMarker?.layerFilter || 'always'}
                         onChange={(e) => onUpdateDraft({ layerFilter: e.target.value })}
+                        style={{ flex: 1 }}
                       >
                         <option value="always">一直显示</option>
                         <option value="panorama">仅全景显示</option>
                         <option value="none">不显示</option>
                       </select>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="form-label">坐标类型</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>坐标类型</span>
                       <select
                         className="custom-select"
                         value={draftMarker?.coordType || 'fov'}
                         onChange={(e) => onUpdateDraft({ coordType: e.target.value })}
+                        style={{ flex: 1 }}
                       >
                         <option value="fov">视野坐标</option>
                         <option value="global">全球坐标</option>
@@ -649,45 +655,44 @@ export default function ConfigPanel({
                 {activeTab === 'action' && (
                   // Tab 3: Link Actions
                   <>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="form-label">关联动作</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>关联动作</span>
                       <select
                         className="custom-select"
                         value={draftMarker?.linkAction || 'none'}
                         onChange={(e) => onUpdateDraft({ linkAction: e.target.value })}
+                        style={{ flex: 1 }}
                       >
                         <option value="none">无</option>
                         <option value="flat_map">平面地图</option>
                         <option value="video">视频监控</option>
                       </select>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <span className="form-label">窗口宽度</span>
-                        <StepInput
-                          value={draftMarker?.windowWidth || 800}
-                          onChange={(val) => onUpdateDraft({ windowWidth: val })}
-                          min={200}
-                          max={1920}
-                          step={50}
-                        />
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <span className="form-label">窗口高度</span>
-                        <StepInput
-                          value={draftMarker?.windowHeight || 600}
-                          onChange={(val) => onUpdateDraft({ windowHeight: val })}
-                          min={150}
-                          max={1080}
-                          step={50}
-                        />
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>窗口宽度</span>
+                      <StepInput
+                        value={draftMarker?.windowWidth || 800}
+                        onChange={(val) => onUpdateDraft({ windowWidth: val })}
+                        min={200}
+                        max={1920}
+                        step={50}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>窗口高度</span>
+                      <StepInput
+                        value={draftMarker?.windowHeight || 600}
+                        onChange={(val) => onUpdateDraft({ windowHeight: val })}
+                        min={150}
+                        max={1080}
+                        step={50}
+                      />
                     </div>
 
                     {/* Images Selection grid */}
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="form-label">添加图片</span>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left', marginTop: '4px' }}>添加图片</span>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
                         {draftMarker?.images?.map((img, idx) => (
                           <div key={idx} style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '6px', border: '1px solid #2e354f', overflow: 'hidden' }}>
                             <img src={img} alt="linkage" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

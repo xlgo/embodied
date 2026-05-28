@@ -61,13 +61,13 @@ export default {
     return (
       <>
         {/* 图标样式 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-          <span style={{ fontSize: '12px', color: '#a0aec0' }}>图标样式</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', position: 'relative' }}>
+          <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>图标样式</span>
           <div
             onClick={() => setShowIconList(!showIconList)}
             style={{
-              width: '60px',
-              height: '60px',
+              width: '40px',
+              height: '40px',
               borderRadius: '4px',
               backgroundColor: 'rgba(255,255,255,0.03)',
               border: '1.5px dashed #2e354f',
@@ -80,15 +80,15 @@ export default {
             className="icon-preview-btn-wrapper"
           >
             <div style={{
-              width: '38px',
-              height: '38px',
+              width: '28px',
+              height: '28px',
               borderRadius: '50%',
               backgroundColor: draftMarker?.color || '#007aff',
-              border: '2px solid white',
+              border: '1.5px solid white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '22px',
+              fontSize: '16px',
               color: 'white',
               boxShadow: '0 2px 8px rgba(0,0,0,0.35)'
             }}>
@@ -99,8 +99,8 @@ export default {
           {showIconList && (
             <div style={{
               position: 'absolute',
-              top: '36px',
-              right: '0',
+              top: '44px',
+              left: '90px',
               backgroundColor: '#161922',
               border: '1px solid #2e354f',
               borderRadius: '8px',
@@ -136,8 +136,8 @@ export default {
         </div>
 
         {/* 图标大小 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#a0aec0' }}>图标大小</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>图标大小</span>
           <StepInput
             value={draftMarker?.iconSize || 28}
             onChange={(val) => onUpdateDraft({ iconSize: val })}
@@ -148,8 +148,8 @@ export default {
         </div>
 
         {/* 显示标题 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#a0aec0' }}>显示标题</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>显示标题</span>
           <label className="toggle-switch">
             <input
               type="checkbox"
@@ -170,7 +170,8 @@ export default {
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
-            marginTop: '4px'
+            marginTop: '4px',
+            marginBottom: '8px'
           }}>
             <ColorInput
               label="字体颜色"
@@ -179,8 +180,8 @@ export default {
                 titleStyle: { ...(draftMarker?.titleStyle || {}), color: val }
               })}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0' }}>字体大小</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>字体大小</span>
               <StepInput
                 value={draftMarker?.titleStyle?.fontSize || 12}
                 onChange={(val) => onUpdateDraft({
@@ -205,8 +206,8 @@ export default {
                 titleStyle: { ...(draftMarker?.titleStyle || {}), borderColor: val }
               })}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框大小</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框大小</span>
               <StepInput
                 value={draftMarker?.titleStyle?.borderWidth || 1}
                 onChange={(val) => onUpdateDraft({
@@ -217,8 +218,8 @@ export default {
                 step={1}
               />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框距离</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框距离</span>
               <StepInput
                 value={draftMarker?.titleStyle?.padding || 4}
                 onChange={(val) => onUpdateDraft({
@@ -229,8 +230,8 @@ export default {
                 step={1}
               />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框圆角</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框圆角</span>
               <StepInput
                 value={draftMarker?.titleStyle?.borderRadius !== undefined ? draftMarker.titleStyle.borderRadius : 4}
                 onChange={(val) => onUpdateDraft({

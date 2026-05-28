@@ -34,8 +34,8 @@ export default {
           onChange={(val) => onUpdateDraft({ strokeColor: val })}
         />
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#a0aec0' }}>曲线粗细</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>曲线粗细</span>
           <StepInput
             value={draftMarker?.strokeWidth || 3}
             onChange={(val) => onUpdateDraft({ strokeWidth: val })}
