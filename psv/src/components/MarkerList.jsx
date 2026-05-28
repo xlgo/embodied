@@ -1,14 +1,19 @@
 import React from 'react';
 
 const btnStyle = {
-  padding: '4px 8px',
-  borderRadius: '4px',
-  border: '1px solid #ccc',
+  padding: '6px 12px',
+  borderRadius: '6px',
+  border: '1px solid #2e354f',
   cursor: 'pointer',
-  background: 'white',
+  background: '#1c1f2e',
+  color: '#a0aec0',
   fontSize: '12px',
   fontWeight: 'bold',
-  transition: 'all 0.2s'
+  transition: 'all 0.2s ease',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '4px'
 };
 
 export default function MarkerList({
@@ -23,9 +28,18 @@ export default function MarkerList({
   onDeleteMarker
 }) {
   return (
-    <div style={{ width: '320px', borderLeft: '1px solid #ddd', paddingLeft: '20px', display: 'flex', flexDirection: 'column' }}>
-      <h3>📝 标记列表</h3>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+    <div style={{
+      width: '280px',
+      borderLeft: '1px solid #1c1f2e',
+      paddingLeft: '24px',
+      display: 'flex',
+      flexDirection: 'column',
+      userSelect: 'none'
+    }}>
+      <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        📝 标中标注列表
+      </h3>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', maxHeight: '580px' }}>
         {markers.map(m => {
           const isSelected = selectedMarkerId === m.id;
           const isEditingPolygon = editingPolygonId === m.id;
@@ -33,44 +47,76 @@ export default function MarkerList({
           const isEditing = isEditingPolygon || isEditingPoint;
           const isPoint = m.type === 'point';
 
+          let itemBg = '#161922';
+          let itemBorder = '1px solid #2e354f';
+          let titleColor = '#e2e8f0';
+
+          if (isEditing) {
+            itemBg = 'rgba(255, 149, 0, 0.06)';
+            itemBorder = '1px solid rgba(255, 149, 0, 0.4)';
+            titleColor = '#ff9500';
+          } else if (isSelected) {
+            itemBg = 'rgba(0, 229, 255, 0.06)';
+            itemBorder = '1px solid rgba(0, 229, 255, 0.4)';
+            titleColor = '#00e5ff';
+          }
+
           return (
             <li 
               key={m.id} 
               onClick={() => onSelectMarker(m.id)}
               style={{ 
-                padding: '12px', 
-                border: isSelected ? '1px solid #007bff' : '1px solid #eee', 
-                marginBottom: '12px', 
-                borderRadius: '8px', 
-                background: isEditing ? '#fff3cd' : (isSelected ? '#e8f4fd' : '#fafafa'),
-                boxShadow: (isEditing || isSelected) ? '0 2px 8px rgba(0,123,255,0.08)' : 'none',
-                transition: 'all 0.2s',
-                cursor: 'pointer'
+                padding: '14px', 
+                border: itemBorder, 
+                borderRadius: '10px', 
+                background: itemBg,
+                boxShadow: (isEditing || isSelected) ? '0 4px 12px rgba(0,0,0,0.2)' : 'none',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}
             >
               {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 'bold', fontSize: '14px', wordBreak: 'break-all', color: '#333' }}>
-                  {isPoint ? `${m.icon || '📍'} ${m.title || '未命名点'}` : `⬡ ${m.id.substring(0, 10)}... (多边形)`}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 'bold', fontSize: '13px', wordBreak: 'break-all', color: titleColor, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {isPoint ? `${m.icon || '📍'} ${m.title || '未命名'}` : `⬡ 多边形区域`}
                 </span>
-                {isSelected && <span style={{ fontSize: '11px', color: '#007bff', fontWeight: 'bold' }}>● {isEditing ? '编辑中' : '已选中'}</span>}
+                {isSelected && (
+                  <span style={{ fontSize: '10px', color: isEditing ? '#ff9500' : '#00e5ff', fontWeight: 'bold' }}>
+                    ● {isEditing ? '编辑中' : '选中'}
+                  </span>
+                )}
               </div>
 
               {/* Position Info */}
               {m.position && (
-                <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>
-                  坐标: ({m.position.yaw.toFixed(2)}, {m.position.pitch.toFixed(2)})
+                <div style={{ fontSize: '11px', color: '#718096', fontFamily: 'monospace' }}>
+                  坐标: {m.position.yaw.toFixed(2)}, {m.position.pitch.toFixed(2)}
                 </div>
               )}
 
               {/* Action Buttons */}
               <div 
-                style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', borderTop: '1px solid #f1f3f5', paddingTop: '8px', marginTop: '4px' }}
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  borderTop: '1px solid rgba(46, 53, 79, 0.3)',
+                  paddingTop: '10px',
+                  marginTop: '2px'
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button 
                   onClick={() => { onGotoMarker(m.id); onSelectMarker(m.id); }} 
-                  style={btnStyle}
+                  style={{
+                    ...btnStyle,
+                    borderColor: '#2e354f'
+                  }}
+                  className="step-btn"
+                  title="定位视角"
                 >
                   🎯 定位
                 </button>
@@ -80,32 +126,37 @@ export default function MarkerList({
                     onClick={() => onToggleEditPoint(m.id)} 
                     style={{
                       ...btnStyle, 
-                      background: isEditingPoint ? '#ffc107' : 'white', 
-                      borderColor: isEditingPoint ? '#ffc107' : '#ccc',
-                      cursor: 'pointer'
+                      background: isEditingPoint ? 'rgba(0, 229, 255, 0.15)' : '#1c1f2e', 
+                      borderColor: isEditingPoint ? '#00e5ff' : '#2e354f',
+                      color: isEditingPoint ? '#00e5ff' : '#a0aec0'
                     }}
-                    title="编辑属性"
+                    className="step-btn"
                   >
-                    {isEditingPoint ? '✅ 正在编辑' : '✏️ 编辑'}
+                    ✏️ 编辑
                   </button>
                 ) : (
                   <button 
                     onClick={() => onToggleEdit(m.id)} 
                     style={{
                       ...btnStyle, 
-                      background: isEditingPolygon ? '#ffc107' : 'white', 
-                      borderColor: isEditingPolygon ? '#ffc107' : '#ccc',
-                      cursor: 'pointer'
+                      background: isEditingPolygon ? 'rgba(0, 229, 255, 0.15)' : '#1c1f2e', 
+                      borderColor: isEditingPolygon ? '#00e5ff' : '#2e354f',
+                      color: isEditingPolygon ? '#00e5ff' : '#a0aec0'
                     }}
-                    title="编辑多边形顶点与样式"
+                    className="step-btn"
                   >
-                    {isEditingPolygon ? '✅ 正在编辑' : '✏️ 编辑'}
+                    ✏️ 编辑
                   </button>
                 )}
                 
                 <button 
                   onClick={() => onDeleteMarker(m.id)} 
-                  style={{...btnStyle, color: 'red'}}
+                  style={{
+                    ...btnStyle,
+                    color: '#ff3b30',
+                    borderColor: 'rgba(255, 59, 48, 0.2)'
+                  }}
+                  className="step-btn"
                 >
                   删除
                 </button>
@@ -113,7 +164,11 @@ export default function MarkerList({
             </li>
           );
         })}
-        {markers.length === 0 && <p style={{ color: '#999' }}>暂无标记，请在左侧绘制</p>}
+        {markers.length === 0 && (
+          <p style={{ color: '#718096', fontSize: '12px', textAlign: 'center', marginTop: '20px' }}>
+            暂无标注数据，请右键全景图唤出菜单进行添加。
+          </p>
+        )}
       </ul>
     </div>
   );

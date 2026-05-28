@@ -1,9 +1,36 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import PhotoSphereComponent from './PhotoSphereComponent';
-import EditorToolbar from './components/EditorToolbar';
 import MarkerList from './components/MarkerList';
+import ContextMenu from './components/ContextMenu';
+import ConfigPanel from './components/ConfigPanel';
+import UserStatusWidget from './components/UserStatusWidget';
 
 const INITIAL_MARKERS = [
+  {
+    id: 'point-1',
+    type: 'point',
+    title: '设备位置 A',
+    color: '#ff3b30',
+    icon: '📍',
+    iconSize: 28,
+    showTitle: true,
+    titleStyle: {
+      color: '#ffffff',
+      fontSize: 12,
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      borderColor: '#ff3b30',
+      borderWidth: 1.5,
+      padding: 5
+    },
+    category: 'none',
+    layerFilter: 'always',
+    coordType: 'fov',
+    linkAction: 'none',
+    windowWidth: 800,
+    windowHeight: 600,
+    images: ['https://picsum.photos/id/10/80/80'],
+    position: { pitch: 0.05, yaw: 1.2 }
+  },
   {
     id: 'polygon-1',
     polygon: [
@@ -19,43 +46,26 @@ const INITIAL_MARKERS = [
       [6.0094, -0.0169],
       [6.0207, 0.0387],
     ],
-    strokeColor: '#ff0000',
-    strokeWidth: 2,
-    fillColor: '#ff0000',
-    fillOpacity: 0.2,
+    strokeColor: '#00ffcc',
+    strokeWidth: 2.5,
+    fillColor: '#00ffcc',
+    fillOpacity: 0.25,
     fillStyle: 'solid',
-    tooltip: {
-      content: '这是一个多边形标注 (Polygon Marker)',
-      position: 'bottom right',
-    },
-  },
-  {
-    id: 'html-bubble',
-    type: 'point',
-    title: '自定义气泡框',
-    color: '#ffc107',
-    icon: '💬',
-    position: { pitch: 0.1, yaw: 1.5 },
-    tooltip: 'HTML 自定义气泡'
-  },
-  {
-    id: 'text-marker',
-    type: 'point',
-    title: '文本标记',
-    color: '#007bff',
-    icon: '📍',
-    position: { pitch: -0.2, yaw: 3.14 },
-    tooltip: '简单的文本标记'
+    tooltip: '这是一个多边形标注区域',
+    category: 'none',
+    layerFilter: 'always',
+    linkAction: 'none',
+    windowWidth: 800,
+    windowHeight: 600,
+    images: []
   }
 ];
 
 function getDistanceToSegment(C, A, B) {
-  // A, B, C are [yaw, pitch]
   let ay = A[0];
   let by = B[0];
   const cy = C[0];
 
-  // Adjust ay and by to be within [-pi, pi] relative to cy (yaw wrapping)
   while (ay - cy > Math.PI) ay -= 2 * Math.PI;
   while (ay - cy < -Math.PI) ay += 2 * Math.PI;
   while (by - cy > Math.PI) by -= 2 * Math.PI;
@@ -83,6 +93,45 @@ function getDistanceToSegment(C, A, B) {
 
   return Math.sqrt((cx - projX) ** 2 + (cp - projP) ** 2);
 }
+
+const DEFAULT_POINT_CONFIG = {
+  type: 'point',
+  title: '新建标签',
+  color: '#ff3b30',
+  icon: '📍',
+  iconSize: 28,
+  showTitle: true,
+  titleStyle: {
+    color: '#ffffff',
+    fontSize: 12,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    borderColor: '#ff3b30',
+    borderWidth: 1.5,
+    padding: 5
+  },
+  category: 'none',
+  layerFilter: 'always',
+  coordType: 'fov',
+  linkAction: 'none',
+  windowWidth: 800,
+  windowHeight: 600,
+  images: []
+};
+
+const DEFAULT_POLYGON_CONFIG = {
+  strokeColor: '#00ffcc',
+  strokeWidth: 2.5,
+  fillColor: '#00ffcc',
+  fillOpacity: 0.25,
+  fillStyle: 'solid',
+  tooltip: '新建多边形区域',
+  category: 'none',
+  layerFilter: 'always',
+  linkAction: 'none',
+  windowWidth: 800,
+  windowHeight: 600,
+  images: []
+};
 
 function App() {
   const psvRef = useRef(null);
@@ -114,15 +163,27 @@ function App() {
   const [editingPolygonId, setEditingPolygonId] = useState(null);
   const [editingPointId, setEditingPointId] = useState(null);
 
-  // Draft state representing the marker currently under active edit (before hitting Save)
+  // Draft state representing the marker currently under active edit/creation (before hitting Save)
   const [draftMarker, setDraftMarker] = useState(null);
 
-  const panoramaUrl = '/sphere.jpg';
+  // Floating Context Menu state
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
 
+  // Floating Editor Panel Visibility, Positions & Dimension
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [panelPos, setPanelPos] = useState({ x: 30, y: 30 });
+  const [panelHeight, setPanelHeight] = useState(385);
+
+  const panoramaUrl = '/sphere.jpg';
   const lastMarkerClickRef = useRef({ id: null, time: 0 });
 
+  // Toggles workspace editor panel visibility when user clicks edit
+  const handleStartEditToolbar = () => {
+    setEditorVisible(true);
+    setPanelPos({ x: 30, y: 30 });
+  };
+
   const handleMarkerClick = (marker) => {
-    // Check if we are currently editing a polygon and clicked its sub-handles
     if (editingPolygonId) {
       if (marker.id.startsWith('delete-handle-')) {
         const pointIndex = parseInt(marker.id.split('-').pop(), 10);
@@ -137,56 +198,66 @@ function App() {
         return;
       }
       if (marker.id.startsWith('edit-handle-')) {
-        return; // Click on edit handle does nothing (dragging updates position)
+        return;
       }
     }
 
-    if (drawingMode !== 'none') return; // Disable standard marker clicks while drawing
+    if (drawingMode !== 'none') return;
 
-    // Double click detection
+    // Double click detection to select/edit marker
     const now = Date.now();
     const lastClick = lastMarkerClickRef.current;
     
     if (lastClick.id === marker.id && (now - lastClick.time) < 300) {
-      // Double clicked! Select the marker
       const targetMarker = markers.find(m => m.id === marker.id);
       if (targetMarker) {
-        // If we are currently editing another marker, discard changes and switch selection
         if (editingPolygonId || editingPointId) {
           setEditingPolygonId(null);
           setEditingPointId(null);
           setDraftMarker(null);
         }
         setSelectedMarkerId(marker.id);
+        setDraftMarker(JSON.parse(JSON.stringify(targetMarker)));
+        setEditorVisible(true);
+
+        if (targetMarker.type === 'point') {
+          setEditingPointId(marker.id);
+          setEditingPolygonId(null);
+        } else {
+          setEditingPolygonId(marker.id);
+          setEditingPointId(null);
+        }
+        setPanelPos({ x: 30, y: 30 });
+        setPanelHeight(385);
       }
-      // Reset
       lastMarkerClickRef.current = { id: null, time: 0 };
     } else {
-      // First click
       lastMarkerClickRef.current = { id: marker.id, time: now };
     }
   };
 
   const handleViewerClick = (data) => {
+    setContextMenu({ visible: false, x: 0, y: 0 });
     if (drawingMode === 'none') return;
     
     const { pitch, yaw } = data;
     
     if (drawingMode === 'point') {
+      const finalId = `point-${Date.now()}`;
+      // Create point using current draft styling attributes
       const newMarker = {
-        id: `point-${Date.now()}`,
-        type: 'point',
-        title: '新建标记点',
-        color: '#3b82f6',
-        icon: '📍',
-        position: { pitch, yaw },
-        tooltip: '自定义绘制点'
+        ...DEFAULT_POINT_CONFIG,
+        ...(draftMarker || {}),
+        id: finalId,
+        position: { pitch, yaw }
       };
+
       setMarkers(prev => [...prev, newMarker]);
       setDrawingMode('none');
-      setSelectedMarkerId(newMarker.id); // Automatically select newly created point
-      setEditingPointId(newMarker.id); // Automatically start editing
-      setDraftMarker(JSON.parse(JSON.stringify(newMarker))); // Initialize draft
+      setSelectedMarkerId(finalId);
+      setEditingPointId(finalId);
+      setDraftMarker(JSON.parse(JSON.stringify(newMarker)));
+      setEditorVisible(true);
     } else if (drawingMode === 'polygon') {
       setDraftPoints(prev => [...prev, [yaw, pitch]]);
     }
@@ -194,7 +265,6 @@ function App() {
 
   const finishPolygon = () => {
     setDraftPoints(currentPoints => {
-      // Clean up consecutive duplicate points (close to 0.01 radians)
       const cleaned = [];
       for (let i = 0; i < currentPoints.length; i++) {
         if (i > 0) {
@@ -202,27 +272,25 @@ function App() {
           const curr = currentPoints[i];
           const dist = Math.sqrt(Math.pow(prev[0] - curr[0], 2) + Math.pow(prev[1] - curr[1], 2));
           if (dist < 0.01) {
-            continue; // skip duplicate point from double-click
+            continue;
           }
         }
         cleaned.push(currentPoints[i]);
       }
 
       if (cleaned.length >= 3) {
+        const finalId = `polygon-${Date.now()}`;
         const newPolygon = {
-          id: `polygon-${Date.now()}`,
-          polygon: cleaned,
-          strokeColor: '#00ff00',
-          strokeWidth: 2,
-          fillColor: '#00ff00',
-          fillOpacity: 0.3,
-          fillStyle: 'solid',
-          tooltip: '自定义绘制的多边形'
+          ...DEFAULT_POLYGON_CONFIG,
+          ...(draftMarker || {}),
+          id: finalId,
+          polygon: cleaned
         };
         setMarkers(prev => [...prev, newPolygon]);
-        setSelectedMarkerId(newPolygon.id); // Automatically select newly created polygon
-        setEditingPolygonId(newPolygon.id); // Enter edit mode directly
-        setDraftMarker(JSON.parse(JSON.stringify(newPolygon))); // Initialize draft
+        setSelectedMarkerId(finalId);
+        setEditingPolygonId(finalId);
+        setDraftMarker(JSON.parse(JSON.stringify(newPolygon)));
+        setEditorVisible(true);
       } else {
         alert("多边形至少需要3个点！");
       }
@@ -234,6 +302,7 @@ function App() {
   const cancelDrawing = () => {
     setDraftPoints([]);
     setDrawingMode('none');
+    setEditorVisible(true);
   };
 
   const gotoMarker = (id) => {
@@ -243,13 +312,27 @@ function App() {
   };
 
   const handleSelectMarker = (id) => {
-    // If we are currently editing another marker, we should discard the draft
     if (editingPolygonId || editingPointId) {
       setEditingPolygonId(null);
       setEditingPointId(null);
       setDraftMarker(null);
     }
     setSelectedMarkerId(id);
+    setEditorVisible(true);
+
+    const targetMarker = markers.find(m => m.id === id);
+    if (targetMarker) {
+      setDraftMarker(JSON.parse(JSON.stringify(targetMarker)));
+      if (targetMarker.type === 'point') {
+        setEditingPointId(id);
+        setEditingPolygonId(null);
+      } else {
+        setEditingPolygonId(id);
+        setEditingPointId(null);
+      }
+      setPanelPos({ x: 30, y: 30 });
+      setPanelHeight(385);
+    }
   };
 
   const handleToggleEdit = (id) => {
@@ -259,19 +342,21 @@ function App() {
         if (!confirmDiscard) return;
       }
       const target = markers.find(m => m.id === id);
-      setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
+      setDraftMarker(JSON.parse(JSON.stringify(target)));
       setEditingPolygonId(id);
       setEditingPointId(null);
-      setSelectedMarkerId(id); // Auto-select when starting edit mode
+      setSelectedMarkerId(id);
+      setEditorVisible(true);
+      setPanelPos({ x: 30, y: 30 });
+      setPanelHeight(385);
     } else {
-      // Exit without saving
       if (draftMarker) {
         const confirmDiscard = window.confirm("当前有未保存的修改，确定要关闭编辑并放弃修改吗？");
         if (!confirmDiscard) return;
       }
       setEditingPolygonId(null);
       setDraftMarker(null);
-      setSelectedMarkerId(null); // Deselect on toggle off
+      setSelectedMarkerId(null);
     }
   };
 
@@ -282,19 +367,21 @@ function App() {
         if (!confirmDiscard) return;
       }
       const target = markers.find(m => m.id === id);
-      setDraftMarker(JSON.parse(JSON.stringify(target))); // copy to draft
+      setDraftMarker(JSON.parse(JSON.stringify(target)));
       setEditingPointId(id);
       setEditingPolygonId(null);
-      setSelectedMarkerId(id); // Auto-select when starting edit mode
+      setSelectedMarkerId(id);
+      setEditorVisible(true);
+      setPanelPos({ x: 30, y: 30 });
+      setPanelHeight(385);
     } else {
-      // Exit without saving
       if (draftMarker) {
         const confirmDiscard = window.confirm("当前有未保存的修改，确定要关闭编辑并放弃修改吗？");
         if (!confirmDiscard) return;
       }
       setEditingPointId(null);
       setDraftMarker(null);
-      setSelectedMarkerId(null); // Deselect on toggle off
+      setSelectedMarkerId(null);
     }
   };
 
@@ -307,16 +394,29 @@ function App() {
 
   const handleSaveEdit = (id) => {
     if (!draftMarker) return;
-    setMarkers(prev => prev.map(m => {
-      if (m.id === id) {
-        return draftMarker;
-      }
-      return m;
-    }));
+
+    // Check for link action validations
+    const hasLinkedData = (draftMarker.images && draftMarker.images.length > 0) || 
+                          (draftMarker.windowWidth && draftMarker.windowWidth !== 800) || 
+                          (draftMarker.windowHeight && draftMarker.windowHeight !== 600);
+    const noLinkAction = draftMarker.linkAction === 'none';
+
+    if (hasLinkedData && noLinkAction) {
+      const confirmSave = window.confirm("检测到您添加了关联图片或调整了窗口大小，但【关联动作】仍为【无】。确定要直接保存吗？");
+      if (!confirmSave) return;
+    }
+
+    const isExisting = markers.some(m => m.id === id);
+    if (isExisting) {
+      setMarkers(prev => prev.map(m => m.id === id ? draftMarker : m));
+    } else {
+      setMarkers(prev => [...prev, { ...draftMarker, id }]);
+    }
+    
     setEditingPointId(null);
     setEditingPolygonId(null);
     setDraftMarker(null);
-    setSelectedMarkerId(null); // Deselect on save
+    setSelectedMarkerId(null);
   };
 
   const handleCancelEdit = () => {
@@ -327,16 +427,27 @@ function App() {
     setEditingPointId(null);
     setEditingPolygonId(null);
     setDraftMarker(null);
-    setSelectedMarkerId(null); // Deselect on cancel
+    setSelectedMarkerId(null);
   };
 
   const handlePointDrag = (id, yaw, pitch) => {
-    // During dragging, update the position in draftMarker for real-time preview
     setDraftMarker(prev => {
       if (prev && prev.id === id) {
         return {
           ...prev,
           position: { yaw, pitch }
+        };
+      }
+      return prev;
+    });
+  };
+
+  const handleMarkerResize = (id, newSize) => {
+    setDraftMarker(prev => {
+      if (prev && prev.id === id) {
+        return {
+          ...prev,
+          iconSize: newSize
         };
       }
       return prev;
@@ -351,7 +462,51 @@ function App() {
     setMarkers(prev => prev.filter(marker => marker.id !== id));
   };
 
-  // Dragging handler for editing polygon points
+  const handleAction = (action) => {
+    if (action === 'delete') {
+      if (selectedMarkerId) {
+        handleDeleteMarker(selectedMarkerId);
+      } else if (draftMarker) {
+        handleCancelEdit();
+      }
+    } else if (action === 'reset') {
+      if (draftMarker) {
+        if (draftMarker.type === 'point') {
+          setDraftMarker({ ...DEFAULT_POINT_CONFIG, id: draftMarker.id, position: draftMarker.position });
+        } else {
+          setDraftMarker({ ...DEFAULT_POLYGON_CONFIG, id: draftMarker.id, polygon: draftMarker.polygon });
+        }
+      }
+    }
+  };
+
+  const handleSelectTool = (tool) => {
+    setDrawingMode(tool);
+    if (tool === 'point') {
+      setDraftMarker({
+        ...DEFAULT_POINT_CONFIG,
+        id: `point-${Date.now()}`
+      });
+      setEditingPointId('new-point');
+      setEditingPolygonId(null);
+      setEditorVisible(false); // Hide toolbar and configs while drawing
+    } else if (tool === 'polygon') {
+      setDraftMarker({
+        ...DEFAULT_POLYGON_CONFIG,
+        id: `polygon-${Date.now()}`
+      });
+      setEditingPolygonId('new-polygon');
+      setEditingPointId(null);
+      setEditorVisible(false); // Hide toolbar and configs while drawing
+      setDraftPoints([]);
+    } else {
+      setDraftMarker(null);
+      setEditingPointId(null);
+      setEditingPolygonId(null);
+      setEditorVisible(true);
+    }
+  };
+
   const handleEditPointDrag = (pointIndex, yaw, pitch) => {
     setDraftMarker(prev => {
       if (prev && prev.polygon) {
@@ -363,41 +518,20 @@ function App() {
     });
   };
 
-  // Double click handler for viewer (finishing drawing or adding point in edit mode)
+  const handleEditPointAdd = (insertIndex, yaw, pitch) => {
+    setDraftMarker(prev => {
+      if (prev && prev.polygon) {
+        const newPoints = [...prev.polygon];
+        newPoints.splice(insertIndex, 0, [yaw, pitch]);
+        return { ...prev, polygon: newPoints };
+      }
+      return prev;
+    });
+  };
+
   const handleViewerDblClick = (data) => {
     if (drawingMode === 'polygon') {
       finishPolygon();
-    } else if (editingPolygonId && draftMarker && draftMarker.polygon) {
-      const { yaw, pitch } = data;
-      const points = draftMarker.polygon;
-      if (points.length < 2) return;
-
-      let minDistance = Infinity;
-      let insertIndex = -1;
-
-      for (let i = 0; i < points.length; i++) {
-        const A = points[i];
-        const B = points[(i + 1) % points.length];
-        const dist = getDistanceToSegment([yaw, pitch], A, B);
-        if (dist < minDistance) {
-          minDistance = dist;
-          insertIndex = i + 1;
-        }
-      }
-
-      if (minDistance < 0.08 && insertIndex !== -1) {
-        setDraftMarker(prev => {
-          if (prev && prev.polygon) {
-            const newPoints = [...prev.polygon];
-            newPoints.splice(insertIndex, 0, [yaw, pitch]);
-            return {
-              ...prev,
-              polygon: newPoints
-            };
-          }
-          return prev;
-        });
-      }
     }
   };
 
@@ -412,39 +546,57 @@ function App() {
     });
   };
 
-  // Combine saved markers with the dynamic draft shape and edit handles
+  const handleContextMenu = (coords) => {
+    setContextMenu({
+      visible: true,
+      x: coords.x,
+      y: coords.y
+    });
+  };
+
+  // Compile active point and polygon visual configurations to viewer
   const displayMarkers = useMemo(() => {
-    // 1. Transform raw point markers with dynamic HTML
     const list = markers.map(m => {
       const isEditingThis = draftMarker && draftMarker.id === m.id;
-      // Real-time preview uses draftMarker values if this marker is being edited
       const currentMarker = isEditingThis ? draftMarker : m;
 
       const isSelected = selectedMarkerId === currentMarker.id;
       const isEditing = (editingPointId === currentMarker.id || editingPolygonId === currentMarker.id);
 
       if (currentMarker.type === 'point') {
-        const isEditingPoint = editingPointId === currentMarker.id;
+        const size = currentMarker.iconSize || 28;
+        const titleColor = currentMarker.titleStyle?.color || '#ffffff';
+        const titleBg = currentMarker.titleStyle?.backgroundColor || 'rgba(0,0,0,0.8)';
+        const titleBorderColor = currentMarker.titleStyle?.borderColor || '#ffffff';
+        const titleBorderWidth = currentMarker.titleStyle?.borderWidth || 1;
+        const titlePadding = currentMarker.titleStyle?.padding || 4;
+        const titleFontSize = currentMarker.titleStyle?.fontSize || 12;
+        const showTitle = currentMarker.showTitle !== false;
+
         return {
           ...currentMarker,
           html: `
-            <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditingPoint ? 'grab' : 'pointer'}; user-select: none;">
-              <div class="marker-icon-wrapper" style="background: ${currentMarker.color || '#3b82f6'}; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'white')}; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; transition: all 0.2s; transform: ${(isEditingPoint || isSelected) ? 'scale(1.15)' : 'none'};">
-                ${currentMarker.icon || '📍'}
+            <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
+              <div class="${isEditing ? 'selected-bounding-box' : ''}" style="display: flex; align-items: center; justify-content: center;">
+                <div class="marker-icon-wrapper" style="background: ${currentMarker.color || '#ff3b30'}; width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: ${size * 0.5}px; color: white;">
+                  ${currentMarker.icon || '📍'}
+                </div>
+                ${isEditing ? `<div class="resize-corner-handle" data-marker-id="${currentMarker.id}"></div>` : ''}
               </div>
-              <div class="marker-title" style="background: ${isEditingPoint ? '#ffc107' : (isSelected ? '#007bff' : 'rgba(0,0,0,0.8)')}; color: ${isEditingPoint ? '#000' : '#fff'}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
-                ${currentMarker.title || '未命名'}
-              </div>
+              ${showTitle ? `
+                <div class="marker-title" style="background: ${titleBg}; color: ${titleColor}; padding: ${titlePadding}px ${titlePadding * 2}px; border: ${titleBorderWidth}px solid ${titleBorderColor}; border-radius: 4px; font-size: ${titleFontSize}px; font-weight: bold; margin-top: 6px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
+                  ${currentMarker.title || '未命名'}
+                </div>
+              ` : ''}
             </div>
           `,
           anchor: 'bottom center'
         };
       } else if (currentMarker.polygon) {
-        // Build style dynamically based on polygon properties
-        const strokeColor = currentMarker.strokeColor || '#ff0000';
-        const strokeWidth = `${currentMarker.strokeWidth || 2}px`;
-        const fillColor = currentMarker.fillColor || '#ff0000';
-        const fillOpacity = currentMarker.fillOpacity !== undefined ? currentMarker.fillOpacity : 0.2;
+        const strokeColor = currentMarker.strokeColor || '#00ffcc';
+        const strokeWidth = `${currentMarker.strokeWidth || 2.5}px`;
+        const fillColor = currentMarker.fillColor || '#00ffcc';
+        const fillOpacity = currentMarker.fillOpacity !== undefined ? currentMarker.fillOpacity : 0.25;
         const fillStyle = currentMarker.fillStyle || 'solid';
 
         const hexToRgba = (hex, alpha) => {
@@ -473,14 +625,14 @@ function App() {
       return currentMarker;
     });
     
-    // 2. Inject drafting markers
+    // Inject drafting markers for polygon creation
     if (drawingMode === 'polygon' && draftPoints.length > 0) {
       draftPoints.forEach((pt, index) => {
         list.push({
           id: `draft-pt-${index}`,
           position: { yaw: pt[0], pitch: pt[1] },
           circle: 5,
-          svgStyle: { fill: 'blue', stroke: 'white', strokeWidth: '2px', pointerEvents: 'none' }
+          svgStyle: { fill: '#00e5ff', stroke: 'white', strokeWidth: '2px', pointerEvents: 'none' }
         });
       });
       
@@ -489,8 +641,8 @@ function App() {
           id: 'draft-polygon',
           polygon: draftPoints,
           svgStyle: {
-            fill: 'rgba(0, 0, 255, 0.2)',
-            stroke: 'blue',
+            fill: 'rgba(0, 229, 255, 0.2)',
+            stroke: '#00e5ff',
             strokeWidth: '3px',
             strokeLinejoin: 'round',
             pointerEvents: 'none'
@@ -501,7 +653,7 @@ function App() {
           id: 'draft-polyline',
           polyline: draftPoints,
           svgStyle: {
-            stroke: 'blue',
+            stroke: '#00e5ff',
             strokeWidth: '3px',
             strokeLinejoin: 'round',
             pointerEvents: 'none'
@@ -510,23 +662,61 @@ function App() {
       }
     }
 
-    // 3. Inject edit vertices for active polygon editing (using draftMarker coordinates)
+    // Inject edit vertices for active polygon editing
     if (editingPolygonId && draftMarker && draftMarker.polygon) {
-      draftMarker.polygon.forEach((pt, index) => {
+      const points = draftMarker.polygon;
+      const n = points.length;
+      points.forEach((pt, index) => {
+        // 1. 添加真实控制点
         list.push({
           id: `edit-handle-${index}`,
           position: { yaw: pt[0], pitch: pt[1] },
           html: `
             <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-              <!-- Drag handle (red dot) -->
-              <div class="edit-handle-marker" data-handle-index="${index}" style="background: red; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
-              <!-- Delete button (white circle with red X) -->
-              <div class="edit-delete-marker" data-handle-index="${index}" style="position: absolute; top: -2px; right: -2px; background: white; color: red; font-size: 10px; width: 14px; height: 14px; border-radius: 50%; border: 1px solid red; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; box-shadow: 0 0 3px rgba(0,0,0,0.5); pointer-events: auto;">×</div>
+              <div class="edit-handle-marker" data-handle-index="${index}" style="background: #ff3b30; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
+              <div class="edit-delete-marker" data-handle-index="${index}" style="position: absolute; top: -2px; right: -2px; background: white; color: #ff3b30; font-size: 10px; width: 14px; height: 14px; border-radius: 50%; border: 1px solid #ff3b30; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; box-shadow: 0 0 3px rgba(0,0,0,0.5); pointer-events: auto;">×</div>
             </div>
           `,
           anchor: 'center',
           tooltip: '拖动修改位置，点击红叉删除'
         });
+
+        // 2. 添加虚拟中点（仅在多边形至少有3个点时）
+        if (n >= 3) {
+          const nextPt = points[(index + 1) % n];
+          let yaw1 = pt[0];
+          let yaw2 = nextPt[0];
+          let pitch1 = pt[1];
+          let pitch2 = nextPt[1];
+
+          let diff = yaw2 - yaw1;
+          while (diff > Math.PI) {
+            yaw2 -= 2 * Math.PI;
+            diff = yaw2 - yaw1;
+          }
+          while (diff < -Math.PI) {
+            yaw2 += 2 * Math.PI;
+            diff = yaw2 - yaw1;
+          }
+
+          let midYaw = yaw1 + diff / 2;
+          let midPitch = (pitch1 + pitch2) / 2;
+
+          while (midYaw < 0) midYaw += 2 * Math.PI;
+          while (midYaw >= 2 * Math.PI) midYaw -= 2 * Math.PI;
+
+          list.push({
+            id: `virtual-handle-${index}`,
+            position: { yaw: midYaw, pitch: midPitch },
+            html: `
+              <div class="virtual-handle-wrapper" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                <div class="virtual-handle-marker" data-handle-index="${index}" style="background: rgba(0, 229, 255, 0.75); width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid white; cursor: pointer; box-shadow: 0 0 4px rgba(0,0,0,0.6); pointer-events: auto;"></div>
+              </div>
+            `,
+            anchor: 'center',
+            tooltip: '拖拽此处添加并调整新顶点'
+          });
+        }
       });
     }
 
@@ -534,317 +724,173 @@ function App() {
   }, [markers, drawingMode, draftPoints, editingPolygonId, editingPointId, selectedMarkerId, draftMarker]);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1400px', margin: '0 auto', display: 'flex', gap: '20px' }}>
+    <div style={{
+      padding: '24px',
+      fontFamily: 'system-ui, sans-serif',
+      maxWidth: '1440px',
+      margin: '0 auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '20px',
+      backgroundColor: '#0d0f14',
+      minHeight: '100vh',
+      color: '#f7fafc'
+    }}>
       
-      <style>{`
-        @keyframes modalFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
+      {/* Header bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1c1f2e', paddingBottom: '16px' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', background: 'linear-gradient(135deg, #00f5d4 0%, #00e5ff 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            🏷️ 智慧全景标签标绘工具
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#a0aec0' }}>
+            点击“标绘工具栏”或右键菜单进行标绘配置。您可以边画标号边在配置面板中调整它们的外观参数。
+          </p>
+        </div>
+        
+        {/* Toggle Edit Toolbar button */}
+        {!editorVisible && drawingMode === 'none' && (
+          <button
+            onClick={handleStartEditToolbar}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #00f5d4 0%, #00e5ff 100%)',
+              color: '#0d0f14',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0, 229, 255, 0.25)',
+              transition: 'all 0.2s'
+            }}
+          >
+            ✏️ 打开标绘工具栏
+          </button>
+        )}
+      </div>
 
-      {/* Left Panel: Viewer */}
-      <div style={{ flex: 1, minWidth: '0' }}>
-        <h1>Photo Sphere Viewer - 画板管理台</h1>
-        <p>支持多边形与标记点编辑。更改配置可以实时预览，确认无误后点击保存生效。</p>
+      {/* Main Workspace */}
+      <div style={{ display: 'flex', gap: '24px', flex: 1 }}>
         
-        <EditorToolbar
-          drawingMode={drawingMode}
-          onStartPolygon={() => {
-            if (draftMarker) {
-              const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并开始绘制吗？");
-              if (!confirmDiscard) return;
-            }
-            setDrawingMode('polygon');
-            setEditingPolygonId(null);
-            setEditingPointId(null);
-            setSelectedMarkerId(null);
-            setDraftMarker(null);
-          }}
-          onStartPoint={() => {
-            if (draftMarker) {
-              const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并开始绘制吗？");
-              if (!confirmDiscard) return;
-            }
-            setDrawingMode('point');
-            setEditingPolygonId(null);
-            setEditingPointId(null);
-            setSelectedMarkerId(null);
-            setDraftMarker(null);
-          }}
-          onRestoreDefault={() => {
-            if (draftMarker) {
-              const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并恢复默认吗？");
-              if (!confirmDiscard) return;
-            }
-            setMarkers(INITIAL_MARKERS);
-            setEditingPolygonId(null);
-            setEditingPointId(null);
-            setSelectedMarkerId(null);
-            setDraftMarker(null);
-          }}
-          onFinishPolygon={finishPolygon}
-          onCancelDrawing={cancelDrawing}
-        />
-        
-        <div style={{ border: '2px solid #ccc', borderRadius: '8px', overflow: 'hidden' }}>
+        {/* Left canvas wrapper */}
+        <div style={{
+          flex: 1,
+          position: 'relative',
+          borderRadius: '12px',
+          border: '1px solid #1c1f2e',
+          overflow: 'hidden',
+          backgroundColor: '#161922',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+          height: '650px'
+        }}>
+          
           <PhotoSphereComponent
             ref={psvRef}
             panorama={panoramaUrl}
             markers={displayMarkers}
-            height="600px"
+            height="100%"
             onMarkerClick={handleMarkerClick}
             onViewerClick={handleViewerClick}
             onViewerDblClick={handleViewerDblClick}
             onEditPointDrag={handleEditPointDrag}
             onEditPointDelete={handleEditPointDelete}
+            onEditPointAdd={handleEditPointAdd}
             onPointDrag={handlePointDrag}
+            onMarkerResize={handleMarkerResize}
+            onContextMenu={handleContextMenu}
+            onDeleteMarker={handleDeleteMarker}
+            selectedMarkerId={selectedMarkerId}
             drawingMode={drawingMode}
             editingPolygonId={editingPolygonId}
             editingPointId={editingPointId}
           />
-        </div>
-      </div>
 
-      {/* Right Panel: List */}
-      <MarkerList
-        markers={markers}
-        selectedMarkerId={selectedMarkerId}
-        editingPolygonId={editingPolygonId}
-        editingPointId={editingPointId}
-        onGotoMarker={gotoMarker}
-        onSelectMarker={handleSelectMarker}
-        onToggleEdit={handleToggleEdit}
-        onToggleEditPoint={handleToggleEditPoint}
-        onDeleteMarker={handleDeleteMarker}
-      />
-
-      {/* Modal Dialog for Editing */}
-      {draftMarker && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          backdropFilter: 'blur(3px)'
-        }} onClick={handleCancelEdit}>
+          {/* 右上角时间与用户信息悬浮组件 */}
           <div style={{
-            width: '440px',
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            animation: 'modalFadeIn 0.25s ease-out'
-          }} onClick={(e) => e.stopPropagation()}>
-            
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#333', fontFamily: 'sans-serif' }}>
-                {draftMarker.type === 'point' ? '📍 编辑标记点属性' : '⬡ 编辑多边形顶点与样式'}
-              </h3>
-              <button 
-                onClick={handleCancelEdit} 
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#999', fontWeight: 'bold' }}
-              >
-                &times;
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ fontFamily: 'sans-serif' }}>
-              {draftMarker.type === 'point' ? (
-                // Point marker fields
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>标题名称:</label>
-                    <input 
-                      type="text" 
-                      value={draftMarker.title || ''} 
-                      onChange={(e) => handleUpdateDraft({ title: e.target.value })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-                      placeholder="例如: 设备位置"
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>标记圆圈颜色:</label>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input 
-                        type="color" 
-                        value={draftMarker.color || '#ff0000'} 
-                        onChange={(e) => handleUpdateDraft({ color: e.target.value })}
-                        style={{ border: 'none', width: '45px', height: '32px', cursor: 'pointer', padding: 0, background: 'none' }}
-                      />
-                      <span style={{ fontSize: '13px', color: '#666', fontFamily: 'monospace' }}>{draftMarker.color || '#ff0000'}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>选择图标 (Emoji/单个字):</label>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                      {['📍', '🚩', '🏠', '⚠️', 'ℹ️', '⭐', '🔥', '💬', '👀', '🎯'].map(emoji => (
-                        <button 
-                          key={emoji} 
-                          type="button" 
-                          onClick={() => handleUpdateDraft({ icon: emoji })}
-                          style={{
-                            padding: '6px 10px',
-                            fontSize: '18px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            borderColor: draftMarker.icon === emoji ? '#007bff' : '#ddd',
-                            background: draftMarker.icon === emoji ? '#e7f1ff' : '#f8f9fa'
-                          }}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    <input 
-                      type="text" 
-                      maxLength={2}
-                      value={draftMarker.icon || ''} 
-                      onChange={(e) => handleUpdateDraft({ icon: e.target.value })}
-                      style={{ width: '80px', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
-                      placeholder="或自定义"
-                    />
-                  </div>
-
-                  <div style={{ fontSize: '12px', color: '#155724', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', padding: '10px', borderRadius: '4px', marginTop: '4px' }}>
-                    💡 <strong>提示：</strong>在左侧全景视图上，您可以直接用鼠标按住拖动该标记点以精确调整其位置。
-                  </div>
-                </div>
-              ) : (
-                // Polygon marker fields
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>边框线条颜色:</label>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input 
-                        type="color" 
-                        value={draftMarker.strokeColor || '#ff0000'} 
-                        onChange={(e) => handleUpdateDraft({ strokeColor: e.target.value })}
-                        style={{ border: 'none', width: '45px', height: '32px', cursor: 'pointer', padding: 0, background: 'none' }}
-                      />
-                      <span style={{ fontSize: '13px', color: '#666', fontFamily: 'monospace' }}>{draftMarker.strokeColor || '#ff0000'}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>边框粗细 ({draftMarker.strokeWidth || 2}px):</label>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="10" 
-                      value={draftMarker.strokeWidth || 2} 
-                      onChange={(e) => handleUpdateDraft({ strokeWidth: parseInt(e.target.value, 10) })}
-                      style={{ width: '100%', cursor: 'pointer' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>填充方式:</label>
-                    <select 
-                      value={draftMarker.fillStyle || 'solid'} 
-                      onChange={(e) => handleUpdateDraft({ fillStyle: e.target.value })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', cursor: 'pointer' }}
-                    >
-                      <option value="solid">实色填充</option>
-                      <option value="none">无填充 (仅保留边框)</option>
-                    </select>
-                  </div>
-
-                  {draftMarker.fillStyle !== 'none' && (
-                    <>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>填充区域颜色:</label>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <input 
-                            type="color" 
-                            value={draftMarker.fillColor || '#ff0000'} 
-                            onChange={(e) => handleUpdateDraft({ fillColor: e.target.value })}
-                            style={{ border: 'none', width: '45px', height: '32px', cursor: 'pointer', padding: 0, background: 'none' }}
-                          />
-                          <span style={{ fontSize: '13px', color: '#666', fontFamily: 'monospace' }}>{draftMarker.fillColor || '#ff0000'}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#495057', marginBottom: '6px' }}>填充不透明度 ({Math.round((draftMarker.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.2) * 100)}%):</label>
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="1" 
-                          step="0.05" 
-                          value={draftMarker.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.2} 
-                          onChange={(e) => handleUpdateDraft({ fillOpacity: parseFloat(e.target.value) })}
-                          style={{ width: '100%', cursor: 'pointer' }}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div style={{ fontSize: '12px', color: '#155724', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', padding: '10px', borderRadius: '4px', marginTop: '4px' }}>
-                    💡 <strong>提示：</strong>在左侧全景视图上，您可以按住拖动顶点修改多边形形状，双击边框线条以增加新顶点，或点击顶点上的 <strong>&times;</strong> 按钮删除点。
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '16px', marginTop: '8px' }}>
-              <button 
-                onClick={handleCancelEdit} 
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: '1px solid #ccc',
-                  cursor: 'pointer',
-                  background: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '13px'
-                }}
-              >
-                ❌ 取消并丢弃
-              </button>
-              <button 
-                onClick={() => handleSaveEdit(draftMarker.id)} 
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: '1px solid #28a745',
-                  cursor: 'pointer',
-                  background: '#28a745',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '13px'
-                }}
-              >
-                💾 保存并生效
-              </button>
-            </div>
-
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            zIndex: 9990
+          }}>
+            <UserStatusWidget />
           </div>
+
+          {/* Prompt banner shown while drawing */}
+          {drawingMode !== 'none' && (
+            <div style={{
+              position: 'absolute',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9993,
+              backgroundColor: 'rgba(22, 25, 34, 0.9)',
+              backdropFilter: 'blur(8px)',
+              border: '1.5px solid rgba(0, 223, 182, 0.4)',
+              borderRadius: '20px',
+              padding: '8px 20px',
+              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: '500',
+              pointerEvents: 'none',
+              animation: 'fadeIn 0.25s ease-out'
+            }}>
+              <span style={{
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#00dfb6',
+                boxShadow: '0 0 8px #00dfb6'
+              }} />
+              {drawingMode === 'point' ? '提示：请在全景图上左键点击，放置点标签' : '提示：请在全景图上点击绘制多边形顶点，双击完成绘制'}
+            </div>
+          )}
+
+          {/* Context menu overlay */}
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            visible={contextMenu.visible}
+            onClose={() => setContextMenu({ visible: false, x: 0, y: 0 })}
+            onAddTag={() => handleSelectTool('point')}
+          />
+
+          {/* Integrated ConfigPanel (includes toolbar, tabs and forms) */}
+          {editorVisible && (
+            <ConfigPanel
+              panelPos={panelPos}
+              setPanelPos={setPanelPos}
+              panelHeight={panelHeight}
+              setPanelHeight={setPanelHeight}
+              drawingMode={drawingMode}
+              onSelectTool={handleSelectTool}
+              onAction={handleAction}
+              draftMarker={draftMarker}
+              onUpdateDraft={handleUpdateDraft}
+              onSave={handleSaveEdit}
+              onCancel={handleCancelEdit}
+            />
+          )}
         </div>
-      )}
+
+        {/* Right sidebar */}
+        <MarkerList
+          markers={markers}
+          selectedMarkerId={selectedMarkerId}
+          editingPolygonId={editingPolygonId}
+          editingPointId={editingPointId}
+          onGotoMarker={gotoMarker}
+          onSelectMarker={handleSelectMarker}
+          onToggleEdit={handleToggleEdit}
+          onToggleEditPoint={handleToggleEditPoint}
+          onDeleteMarker={handleDeleteMarker}
+        />
+      </div>
 
     </div>
   );
