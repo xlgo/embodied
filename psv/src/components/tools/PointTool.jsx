@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
-
-// 预设图标列表
+// 预设图标列表，采用 SVG 路径并定义预设颜色以匹配设计图
 const presetIcons = [
-  { icon: '📍', color: '#ff3b30', label: '红色定位销' },
-  { icon: '📍', color: '#007aff', label: '蓝色定位销' },
-  { icon: '📍', color: '#34c759', label: '绿色定位销' },
-  { icon: '📍', color: '#ffcc00', label: '黄色定位销' },
-  { icon: '🚩', color: '#ff3b30', label: '红旗' },
-  { icon: '🏠', color: '#5856d6', label: '房屋' },
-  { icon: '⚠️', color: '#ff9500', label: '警示' },
-  { icon: '💬', color: '#007aff', label: '对话' },
+  {
+    id: 'camera',
+    label: '监控摄像头',
+    color: '#ff3b30',
+    icon: `<path d="M16 10.375V8.5C16 7.675 15.325 7 14.5 7H3.5C2.675 7 2 7.675 2 8.5V15.5C2 16.325 2.675 17 3.5 17H14.5C15.325 17 16 16.325 16 15.5V13.625L20 17.625V6.375L16 10.375Z" />`
+  },
+  {
+    id: 'pin',
+    label: '定位点',
+    color: '#007aff',
+    icon: `<circle cx="12" cy="12" r="5" />`
+  },
+  {
+    id: 'warning',
+    label: '警示',
+    color: '#ff9500',
+    icon: `<path d="M12 2L2 22H22L12 2ZM12 18C11.4 18 11 17.6 11 17C11 16.4 11.4 16 12 16C12.6 16 13 16.4 13 17C13 17.6 12.6 18 12 18ZM12 14C11.4 14 11 13.6 11 13V9C11 8.4 11.4 8 12 8C12.6 8 13 8.4 13 9V13C13 13.6 12.6 14 12 14Z" />`
+  },
+  {
+    id: 'home',
+    label: '房屋',
+    color: '#34c759',
+    icon: `<path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />`
+  },
+  {
+    id: 'flag',
+    label: '旗帜',
+    color: '#ffcc00',
+    icon: `<path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z" />`
+  }
 ];
 
 export default {
@@ -28,17 +48,9 @@ export default {
     type: 'point',
     title: '新建标签',
     color: '#ff3b30',
-    icon: '📍',
-    iconSize: 28,
+    icon: `<path d="M16 10.375V8.5C16 7.675 15.325 7 14.5 7H3.5C2.675 7 2 7.675 2 8.5V15.5C2 16.325 2.675 17 3.5 17H14.5C15.325 17 16 16.325 16 15.5V13.625L20 17.625V6.375L16 10.375Z" />`, // 默认为监控摄像头
+    iconSize: 24,
     showTitle: true,
-    titleStyle: {
-      color: '#ffffff',
-      fontSize: 12,
-      backgroundColor: 'rgba(0,0,0,0.85)',
-      borderColor: '#ff3b30',
-      borderWidth: 1.5,
-      padding: 5
-    },
     category: 'none',
     layerFilter: 'always',
     coordType: 'fov',
@@ -59,6 +71,10 @@ export default {
       setShowIconList(false);
     };
 
+    const currentIcon = draftMarker?.icon || '';
+    const isSvgIcon = currentIcon.includes('<path') || currentIcon.includes('<circle');
+    const color = draftMarker?.color || '#ff3b30';
+
     return (
       <>
         {/* 图标样式 */}
@@ -67,8 +83,8 @@ export default {
           <div
             onClick={() => setShowIconList(!showIconList)}
             style={{
-              width: '40px',
-              height: '40px',
+              width: '60px',
+              height: '60px',
               borderRadius: '4px',
               backgroundColor: 'rgba(255,255,255,0.03)',
               border: '1.5px dashed #2e354f',
@@ -80,27 +96,25 @@ export default {
             }}
             className="icon-preview-btn-wrapper"
           >
-            <div style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              backgroundColor: draftMarker?.color || '#ff3b30',
-              border: '1.5px solid white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              color: 'white',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.35)'
-            }}>
-              {draftMarker?.icon || '📍'}
+            {/* 地图针图标预览，完全匹配设计图效果 */}
+            <div style={{ position: 'relative', width: '36px', height: '45px', display: 'flex', alignItems: 'center', justifycontent: 'center' }}>
+              <svg viewBox="0 0 24 30" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }}>
+                <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 30 12 30 C12 30 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill={color} />
+              </svg>
+              <div style={{ position: 'absolute', top: '5.5px', left: '8px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                {isSvgIcon ? (
+                  <svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" dangerouslySetInnerHTML={{ __html: currentIcon }} />
+                ) : (
+                  <span style={{ fontSize: '12px' }}>{currentIcon}</span>
+                )}
+              </div>
             </div>
           </div>
 
           {showIconList && (
             <div style={{
               position: 'absolute',
-              top: '44px',
+              top: '64px',
               left: '90px',
               backgroundColor: '#161922',
               border: '1px solid #2e354f',
@@ -119,18 +133,22 @@ export default {
                   onClick={() => handleSelectIcon(item)}
                   style={{
                     width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: item.color,
-                    border: '1.5px solid white',
+                    height: '40px',
+                    position: 'relative',
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '15px',
-                    cursor: 'pointer'
+                    justifyContent: 'center'
                   }}
                   title={item.label}
-                />
+                >
+                  <svg viewBox="0 0 24 30" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }}>
+                    <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 30 12 30 C12 30 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill={item.color} />
+                  </svg>
+                  <div style={{ position: 'absolute', top: '5px', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                    <svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" dangerouslySetInnerHTML={{ __html: item.icon }} />
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -140,7 +158,7 @@ export default {
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
           <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>图标大小</span>
           <StepInput
-            value={draftMarker?.iconSize || 28}
+            value={draftMarker?.iconSize || 24}
             onChange={(val) => onUpdateDraft({ iconSize: val })}
             min={16}
             max={64}
@@ -160,91 +178,6 @@ export default {
             <span className="slider"></span>
           </label>
         </div>
-
-        {/* 标题样式子面板 */}
-        {draftMarker?.showTitle !== false && (
-          <div style={{
-            backgroundColor: 'rgba(28, 31, 46, 0.4)',
-            border: '1px solid #1c1f2e',
-            borderRadius: '8px',
-            padding: '10px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            marginTop: '4px',
-            marginBottom: '8px'
-          }}>
-            <ColorInput
-              label="字体颜色"
-              value={draftMarker?.titleStyle?.color || '#ffffff'}
-              onChange={(val) => onUpdateDraft({
-                titleStyle: { ...(draftMarker?.titleStyle || {}), color: val }
-              })}
-            />
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>字体大小</span>
-              <StepInput
-                value={draftMarker?.titleStyle?.fontSize || 12}
-                onChange={(val) => onUpdateDraft({
-                  titleStyle: { ...(draftMarker?.titleStyle || {}), fontSize: val }
-                })}
-                min={9}
-                max={36}
-                step={1}
-              />
-            </div>
-            <ColorInput
-              label="背景颜色"
-              value={draftMarker?.titleStyle?.backgroundColor || 'rgba(0,0,0,0.8)'}
-              onChange={(val) => onUpdateDraft({
-                titleStyle: { ...(draftMarker?.titleStyle || {}), backgroundColor: val }
-              })}
-            />
-            <ColorInput
-              label="边框颜色"
-              value={draftMarker?.titleStyle?.borderColor || '#ffffff'}
-              onChange={(val) => onUpdateDraft({
-                titleStyle: { ...(draftMarker?.titleStyle || {}), borderColor: val }
-              })}
-            />
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框大小</span>
-              <StepInput
-                value={draftMarker?.titleStyle?.borderWidth || 1}
-                onChange={(val) => onUpdateDraft({
-                  titleStyle: { ...(draftMarker?.titleStyle || {}), borderWidth: val }
-                })}
-                min={0}
-                max={10}
-                step={1}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框距离</span>
-              <StepInput
-                value={draftMarker?.titleStyle?.padding || 4}
-                onChange={(val) => onUpdateDraft({
-                  titleStyle: { ...(draftMarker?.titleStyle || {}), padding: val }
-                })}
-                min={0}
-                max={20}
-                step={1}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left' }}>边框圆角</span>
-              <StepInput
-                value={draftMarker?.titleStyle?.borderRadius !== undefined ? draftMarker.titleStyle.borderRadius : 4}
-                onChange={(val) => onUpdateDraft({
-                  titleStyle: { ...(draftMarker?.titleStyle || {}), borderRadius: val }
-                })}
-                min={0}
-                max={30}
-                step={1}
-              />
-            </div>
-          </div>
-        )}
       </>
     );
   }

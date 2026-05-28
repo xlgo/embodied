@@ -664,29 +664,33 @@ function App() {
           };
         }
 
-        const size = currentMarker.iconSize || 28;
-        const titleColor = currentMarker.titleStyle?.color || '#ffffff';
-        const titleBg = currentMarker.titleStyle?.backgroundColor || 'rgba(0,0,0,0.8)';
-        const titleBorderColor = currentMarker.titleStyle?.borderColor || '#ffffff';
-        const titleBorderWidth = currentMarker.titleStyle?.borderWidth || 1;
-        const titlePadding = currentMarker.titleStyle?.padding || 4;
-        const titleFontSize = currentMarker.titleStyle?.fontSize || 12;
+        const size = currentMarker.iconSize || 24;
+        const color = currentMarker.color || '#ff3b30';
+        const icon = currentMarker.icon || '📍';
         const showTitle = currentMarker.showTitle !== false;
 
-        const titleRadius = currentMarker.titleStyle?.borderRadius !== undefined ? `${currentMarker.titleStyle.borderRadius}px` : '4px';
+        const isSvgIcon = icon.includes('<path') || icon.includes('<circle');
+        const innerIconHtml = isSvgIcon 
+          ? `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor">${icon}</svg>` 
+          : `<span style="font-size: ${size * 0.45}px; line-height: 1;">${icon}</span>`;
 
         return {
           ...currentMarker,
           html: `
             <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
-              <div class="${isEditing ? 'selected-bounding-box' : ''}" style="display: flex; align-items: center; justify-content: center;">
-                <div class="marker-icon-wrapper" style="background: ${currentMarker.color || '#ff3b30'}; width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; font-size: ${size * 0.5}px; color: white;">
-                  ${currentMarker.icon || '📍'}
+              <div class="${isEditing ? 'selected-bounding-box' : ''}" style="position: relative; display: flex; align-items: center; justify-content: center; width: ${size}px; height: ${size * 1.25}px;">
+                <!-- 地图定位针背景 SVG -->
+                <svg viewBox="0 0 24 30" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));">
+                  <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 30 12 30 C12 30 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill="${color}" />
+                </svg>
+                <!-- 内部图标容器 -->
+                <div style="position: absolute; top: ${size * 0.15}px; width: ${size * 0.55}px; height: ${size * 0.55}px; display: flex; align-items: center; justify-content: center; color: white;">
+                  ${innerIconHtml}
                 </div>
-                ${isEditing ? `<div class="resize-corner-handle" data-marker-id="${currentMarker.id}"></div>` : ''}
+                ${isEditing ? `<div class="resize-corner-handle" data-marker-id="${currentMarker.id}" style="bottom: 0; right: 0;"></div>` : ''}
               </div>
               ${showTitle ? `
-                <div class="marker-title" style="background: ${titleBg}; color: ${titleColor}; padding: ${titlePadding}px ${titlePadding * 2}px; border: ${titleBorderWidth}px solid ${titleBorderColor}; border-radius: ${titleRadius}; font-size: ${titleFontSize}px; font-weight: bold; margin-top: 6px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
+                <div class="marker-title" style="background: rgba(0, 0, 0, 0.85); color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
                   ${currentMarker.title || '未命名'}
                 </div>
               ` : ''}
