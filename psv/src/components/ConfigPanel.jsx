@@ -369,23 +369,22 @@ export default function ConfigPanel({
           transform: translateX(18px);
         }
         .save-btn {
-          background: linear-gradient(135deg, #00f5d4 0%, #00e5ff 100%);
-          border: none;
-          color: #0d0f14;
-          font-weight: bold;
+          border: 1px solid #2e354f;
+          background-color: #1c1f2e;
+          color: #e2e8f0;
           border-radius: 6px;
           padding: 6px 12px;
           cursor: pointer;
           font-size: 12px;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 4px;
-          box-shadow: 0 4px 12px rgba(0, 229, 255, 0.2);
           transition: all 0.2s;
         }
         .save-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(0, 229, 255, 0.35);
+          background-color: #2e354f;
+          color: #ffffff;
+          border-color: #00e5ff;
         }
         .cancel-btn {
           border: 1px solid #2e354f;
@@ -558,7 +557,14 @@ export default function ConfigPanel({
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '4px' }}>
-                <button className="save-btn" onClick={() => onSave(draftMarker?.id)}>💾 保存</button>
+                <button className="save-btn" onClick={() => onSave(draftMarker?.id)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  保存
+                </button>
               </div>
             </div>
           ) : (
@@ -731,7 +737,14 @@ export default function ConfigPanel({
               {/* Bottom save/cancel buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 16px', borderTop: '1px solid rgba(46,53,79,0.4)', backgroundColor: 'rgba(0,0,0,0.1)' }}>
                 <button className="cancel-btn" onClick={onCancel}>取消</button>
-                <button className="save-btn" onClick={() => onSave(draftMarker?.id)}>💾 保存</button>
+                <button className="save-btn" onClick={() => onSave(draftMarker?.id)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  保存
+                </button>
               </div>
             </>
           )}
