@@ -211,7 +211,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
 
   // Floating Editor Panel Visibility, Positions & Dimension
-  const [editorVisible, setEditorVisible] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(true);
   const [panelPos, setPanelPos] = useState({ x: 680, y: 30 });
   const [panelHeight, setPanelHeight] = useState(385);
 
@@ -1256,41 +1256,14 @@ function App() {
             editingPointId={editingPointId}
           />
 
-          {/* 右上角时间与用户信息悬浮组件，并在下方加入浮动的打开标绘工具栏按钮 */}
+          {/* 右上角时间与用户信息悬浮组件 */}
           <div style={{
             position: 'absolute',
             top: '20px',
             right: '20px',
-            zIndex: 9990,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: '10px'
+            zIndex: 9990
           }}>
             <UserStatusWidget />
-            {!editorVisible && drawingMode === 'none' && (
-              <button
-                onClick={handleStartEditToolbar}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  border: '1.2px solid rgba(0, 223, 182, 0.4)',
-                  background: 'rgba(22, 25, 34, 0.85)',
-                  backdropFilter: 'blur(8px)',
-                  color: '#00dfb6',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                ✏️ 打开标绘工具栏
-              </button>
-            )}
           </div>
 
           {/* Prompt banner shown while drawing */}
