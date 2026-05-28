@@ -242,7 +242,7 @@ function App() {
     
     const { pitch, yaw } = data;
     
-    if (drawingMode === 'point') {
+    if (drawingMode === 'point' || drawingMode === 'image_text') {
       const finalId = `point-${Date.now()}`;
       // Create point using current draft styling attributes
       const newMarker = {
@@ -258,7 +258,7 @@ function App() {
       setEditingPointId(finalId);
       setDraftMarker(JSON.parse(JSON.stringify(newMarker)));
       setEditorVisible(true);
-    } else if (drawingMode === 'polygon') {
+    } else if (drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier') {
       setDraftPoints(prev => [...prev, [yaw, pitch]]);
     }
   };
@@ -423,6 +423,8 @@ function App() {
     if (draftMarker) {
       const confirmDiscard = window.confirm("确定要取消并放弃此次修改吗？");
       if (!confirmDiscard) return;
+    } else {
+      setEditorVisible(false);
     }
     setEditingPointId(null);
     setEditingPolygonId(null);
@@ -482,18 +484,20 @@ function App() {
 
   const handleSelectTool = (tool) => {
     setDrawingMode(tool);
-    if (tool === 'point') {
+    if (tool === 'point' || tool === 'image_text') {
       setDraftMarker({
         ...DEFAULT_POINT_CONFIG,
-        id: `point-${Date.now()}`
+        id: `point-${Date.now()}`,
+        ...(tool === 'image_text' ? { icon: '💬', title: '新建图文标签' } : {})
       });
       setEditingPointId('new-point');
       setEditingPolygonId(null);
       setEditorVisible(false); // Hide toolbar and configs while drawing
-    } else if (tool === 'polygon') {
+    } else if (tool === 'polygon' || tool === 'line' || tool === 'bezier') {
       setDraftMarker({
         ...DEFAULT_POLYGON_CONFIG,
-        id: `polygon-${Date.now()}`
+        id: `polygon-${Date.now()}`,
+        tooltip: tool === 'line' ? '新建线段' : tool === 'bezier' ? '新建贝塞尔曲线' : '新建多边形区域'
       });
       setEditingPolygonId('new-polygon');
       setEditingPointId(null);
@@ -847,7 +851,15 @@ function App() {
                 backgroundColor: '#00dfb6',
                 boxShadow: '0 0 8px #00dfb6'
               }} />
-              {drawingMode === 'point' ? '提示：请在全景图上左键点击，放置点标签' : '提示：请在全景图上点击绘制多边形顶点，双击完成绘制'}
+              {drawingMode === 'point'
+                ? '提示：请在全景图上左键点击，放置点位标签'
+                : drawingMode === 'image_text'
+                ? '提示：请在全景图上左键点击，放置图文标签'
+                : drawingMode === 'line'
+                ? '提示：请在全景图上点击绘制折线节点，双击完成绘制'
+                : drawingMode === 'bezier'
+                ? '提示：请在全景图上点击绘制贝塞尔控制点，双击完成绘制'
+                : '提示：请在全景图上点击绘制多边形顶点，双击完成绘制'}
             </div>
           )}
 
@@ -857,7 +869,7 @@ function App() {
             y={contextMenu.y}
             visible={contextMenu.visible}
             onClose={() => setContextMenu({ visible: false, x: 0, y: 0 })}
-            onAddTag={() => handleSelectTool('point')}
+            onAddTag={handleStartEditToolbar}
           />
 
           {/* Integrated ConfigPanel (includes toolbar, tabs and forms) */}

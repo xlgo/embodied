@@ -450,7 +450,7 @@ export default function ConfigPanel({
 
           <button 
             className={`tb-btn ${drawingMode === 'point' ? 'active' : ''}`} 
-            title="定位销标绘" 
+            title="点位标绘" 
             onClick={() => onSelectTool('point')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -461,15 +461,15 @@ export default function ConfigPanel({
           </button>
 
           <button 
-            className={`tb-btn`} 
-            title="球面标绘" 
-            onClick={() => onSelectTool('point')}
+            className={`tb-btn ${drawingMode === 'image_text' ? 'active' : ''}`} 
+            title="图文标绘" 
+            onClick={() => onSelectTool('image_text')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="5.5" />
-              <line x1="12" y1="13.5" x2="12" y2="21" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <path d="M10 5a2.5 2.5 0 0 1 2.5 2.5" />
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="9" y1="21" x2="9" y2="9" />
+              <path d="M13 13h4M13 17h4" />
             </svg>
           </button>
 
@@ -484,13 +484,27 @@ export default function ConfigPanel({
           </button>
 
           <button 
-            className={`tb-btn`} 
-            title="折线标绘" 
-            onClick={() => onSelectTool('polygon')}
+            className={`tb-btn ${drawingMode === 'line' ? 'active' : ''}`} 
+            title="线段标绘" 
+            onClick={() => onSelectTool('line')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h7v6h6v6h4" />
               <polyline points="16 15 19 18 16 21" />
+            </svg>
+          </button>
+
+          <button 
+            className={`tb-btn ${drawingMode === 'bezier' ? 'active' : ''}`} 
+            title="贝塞尔曲线标绘" 
+            onClick={() => onSelectTool('bezier')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 17c5 0 5-10 10-10s5 10 8 10" />
+              <circle cx="3" cy="17" r="2" fill="currentColor" />
+              <circle cx="21" cy="17" r="2" fill="currentColor" />
+              <circle cx="8" cy="7" r="1.2" fill="currentColor" />
+              <circle cx="13" cy="7" r="1.2" fill="currentColor" />
             </svg>
           </button>
 
@@ -506,15 +520,28 @@ export default function ConfigPanel({
               <path d="M3 20c3.5-1 7 1 10.5-1" />
             </svg>
           </button>
-
-          <button 
-            className="tb-btn" 
-            title="重置" 
-            onClick={() => onAction('reset')}
+          <div style={{ width: '1px', height: '20px', backgroundColor: '#2e354f', margin: '0 2px', marginLeft: 'auto' }} />
+          <button
+            onClick={onCancel}
+            title="关闭工具栏"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#a0aec0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '24px',
+              height: '24px',
+              borderRadius: '4px',
+              transition: 'all 0.2s'
+            }}
+            className="close-edit-btn"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.5 2v6h-6" />
-              <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l.57-.6" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>

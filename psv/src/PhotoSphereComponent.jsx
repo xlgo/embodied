@@ -460,7 +460,7 @@ const PhotoSphereComponent = forwardRef(({
 
   // Handle follow cursor position updating
   const handlePointerMoveFollow = (e) => {
-    if (drawingMode !== 'point') return;
+    if (drawingMode !== 'point' && drawingMode !== 'image_text') return;
     const rect = containerRef.current.getBoundingClientRect();
     setFollowCursor({
       x: e.clientX - rect.left,
@@ -470,7 +470,7 @@ const PhotoSphereComponent = forwardRef(({
   };
 
   const handlePointerEnterFollow = () => {
-    if (drawingMode === 'point') {
+    if (drawingMode === 'point' || drawingMode === 'image_text') {
       setFollowCursor(prev => ({ ...prev, visible: true }));
     }
   };
@@ -489,7 +489,7 @@ const PhotoSphereComponent = forwardRef(({
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
       {/* Follow cursor element representing active pin */}
-      {drawingMode === 'point' && followCursor.visible && (
+      {(drawingMode === 'point' || drawingMode === 'image_text') && followCursor.visible && (
         <div
           className="follow-mouse-cursor"
           style={{
@@ -498,7 +498,7 @@ const PhotoSphereComponent = forwardRef(({
           }}
         >
           <div style={{
-            background: '#ff3b30',
+            background: drawingMode === 'image_text' ? '#00dfb6' : '#ff3b30',
             width: '24px',
             height: '24px',
             borderRadius: '50%',
@@ -510,7 +510,7 @@ const PhotoSphereComponent = forwardRef(({
             fontSize: '12px',
             color: 'white'
           }}>
-            📍
+            {drawingMode === 'image_text' ? '💬' : '📍'}
           </div>
         </div>
       )}
