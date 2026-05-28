@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import PhotoSphereComponent from './PhotoSphereComponent';
 import MarkerList from './components/MarkerList';
 import ContextMenu from './components/ContextMenu';
-import ConfigPanel from './components/ConfigPanel';
+import ConfigPanel, { registeredTools } from './components/ConfigPanel';
 import UserStatusWidget from './components/UserStatusWidget';
 
 const INITIAL_MARKERS = [
@@ -60,6 +60,33 @@ const INITIAL_MARKERS = [
     images: []
   }
 ];
+
+function getBezierPoints(points, steps = 100) {
+  if (!points || points.length < 2) return points || [];
+  const n = points.length - 1;
+  const curvePoints = [];
+  
+  const binomial = (n, k) => {
+    let coeff = 1;
+    for (let i = 1; i <= k; i++) {
+      coeff = coeff * (n - i + 1) / i;
+    }
+    return coeff;
+  };
+  
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps;
+    let yaw = 0;
+    let pitch = 0;
+    for (let i = 0; i <= n; i++) {
+      const coeff = binomial(n, i) * Math.pow(1 - t, n - i) * Math.pow(t, i);
+      yaw += coeff * points[i][0];
+      pitch += coeff * points[i][1];
+    }
+    curvePoints.push([yaw, pitch]);
+  }
+  return curvePoints;
+}
 
 function getDistanceToSegment(C, A, B) {
   let ay = A[0];
@@ -188,10 +215,11 @@ function App() {
       if (marker.id.startsWith('delete-handle-')) {
         const pointIndex = parseInt(marker.id.split('-').pop(), 10);
         setDraftMarker(prev => {
-          if (prev && prev.polygon) {
-            const newPoints = [...prev.polygon];
+          const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
+          if (prev && key) {
+            const newPoints = [...prev[key]];
             newPoints.splice(pointIndex, 1);
-            return { ...prev, polygon: newPoints };
+            return { ...prev, [key]: newPoints };
           }
           return prev;
         });
@@ -242,11 +270,14 @@ function App() {
     
     const { pitch, yaw } = data;
     
-    if (drawingMode === 'point' || drawingMode === 'image_text') {
+    const selectedTool = registeredTools.find(t => t.id === drawingMode);
+    if (!selectedTool) return;
+
+    if (selectedTool.type === 'point') {
       const finalId = `point-${Date.now()}`;
       // Create point using current draft styling attributes
       const newMarker = {
-        ...DEFAULT_POINT_CONFIG,
+        ...selectedTool.defaultConfig,
         ...(draftMarker || {}),
         id: finalId,
         position: { pitch, yaw }
@@ -258,12 +289,12 @@ function App() {
       setEditingPointId(finalId);
       setDraftMarker(JSON.parse(JSON.stringify(newMarker)));
       setEditorVisible(true);
-    } else if (drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier') {
+    } else if (selectedTool.type === 'polygon' || selectedTool.type === 'polyline') {
       setDraftPoints(prev => [...prev, [yaw, pitch]]);
     }
   };
 
-  const finishPolygon = () => {
+  const finishDrawing = () => {
     setDraftPoints(currentPoints => {
       const cleaned = [];
       for (let i = 0; i < currentPoints.length; i++) {
@@ -278,21 +309,27 @@ function App() {
         cleaned.push(currentPoints[i]);
       }
 
-      if (cleaned.length >= 3) {
-        const finalId = `polygon-${Date.now()}`;
-        const newPolygon = {
-          ...DEFAULT_POLYGON_CONFIG,
+      const selectedTool = registeredTools.find(t => t.id === drawingMode);
+      if (!selectedTool) return [];
+
+      const isPolygon = selectedTool.type === 'polygon';
+      const minPoints = isPolygon ? 3 : 2;
+
+      if (cleaned.length >= minPoints) {
+        const finalId = `${selectedTool.id}-${Date.now()}`;
+        const newShape = {
+          ...selectedTool.defaultConfig,
           ...(draftMarker || {}),
           id: finalId,
-          polygon: cleaned
+          ...(isPolygon ? { polygon: cleaned } : { polyline: cleaned })
         };
-        setMarkers(prev => [...prev, newPolygon]);
+        setMarkers(prev => [...prev, newShape]);
         setSelectedMarkerId(finalId);
         setEditingPolygonId(finalId);
-        setDraftMarker(JSON.parse(JSON.stringify(newPolygon)));
+        setDraftMarker(JSON.parse(JSON.stringify(newShape)));
         setEditorVisible(true);
       } else {
-        alert("多边形至少需要3个点！");
+        alert(isPolygon ? '多边形至少需要3个点！' : '线段至少需要2个点！');
       }
       return [];
     });
@@ -473,36 +510,40 @@ function App() {
       }
     } else if (action === 'reset') {
       if (draftMarker) {
-        if (draftMarker.type === 'point') {
-          setDraftMarker({ ...DEFAULT_POINT_CONFIG, id: draftMarker.id, position: draftMarker.position });
-        } else {
-          setDraftMarker({ ...DEFAULT_POLYGON_CONFIG, id: draftMarker.id, polygon: draftMarker.polygon });
+        const selectedTool = registeredTools.find(t => t.match && t.match(draftMarker));
+        if (selectedTool) {
+          if (selectedTool.type === 'point') {
+            setDraftMarker({ ...selectedTool.defaultConfig, id: draftMarker.id, position: draftMarker.position });
+          } else {
+            const shapeKey = draftMarker.polygon ? 'polygon' : 'polyline';
+            setDraftMarker({ ...selectedTool.defaultConfig, id: draftMarker.id, [shapeKey]: draftMarker[shapeKey] });
+          }
         }
       }
     }
   };
 
-  const handleSelectTool = (tool) => {
-    setDrawingMode(tool);
-    if (tool === 'point' || tool === 'image_text') {
+  const handleSelectTool = (toolId) => {
+    const selectedTool = registeredTools.find(t => t.id === toolId);
+    if (selectedTool) {
+      setDrawingMode(toolId);
+      const isPointType = selectedTool.type === 'point';
+      const draftId = `${selectedTool.type}-${Date.now()}`;
+      
       setDraftMarker({
-        ...DEFAULT_POINT_CONFIG,
-        id: `point-${Date.now()}`,
-        ...(tool === 'image_text' ? { icon: '💬', title: '新建图文标签' } : {})
+        ...selectedTool.defaultConfig,
+        id: draftId
       });
-      setEditingPointId('new-point');
-      setEditingPolygonId(null);
+
+      if (isPointType) {
+        setEditingPointId('new-point');
+        setEditingPolygonId(null);
+      } else {
+        setEditingPolygonId('new-polygon');
+        setEditingPointId(null);
+        setDraftPoints([]);
+      }
       setEditorVisible(false); // Hide toolbar and configs while drawing
-    } else if (tool === 'polygon' || tool === 'line' || tool === 'bezier') {
-      setDraftMarker({
-        ...DEFAULT_POLYGON_CONFIG,
-        id: `polygon-${Date.now()}`,
-        tooltip: tool === 'line' ? '新建线段' : tool === 'bezier' ? '新建贝塞尔曲线' : '新建多边形区域'
-      });
-      setEditingPolygonId('new-polygon');
-      setEditingPointId(null);
-      setEditorVisible(false); // Hide toolbar and configs while drawing
-      setDraftPoints([]);
     } else {
       setDraftMarker(null);
       setEditingPointId(null);
@@ -513,10 +554,11 @@ function App() {
 
   const handleEditPointDrag = (pointIndex, yaw, pitch) => {
     setDraftMarker(prev => {
-      if (prev && prev.polygon) {
-        const newPoints = [...prev.polygon];
+      const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
+      if (prev && key) {
+        const newPoints = [...prev[key]];
         newPoints[pointIndex] = [yaw, pitch];
-        return { ...prev, polygon: newPoints };
+        return { ...prev, [key]: newPoints };
       }
       return prev;
     });
@@ -524,27 +566,29 @@ function App() {
 
   const handleEditPointAdd = (insertIndex, yaw, pitch) => {
     setDraftMarker(prev => {
-      if (prev && prev.polygon) {
-        const newPoints = [...prev.polygon];
+      const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
+      if (prev && key) {
+        const newPoints = [...prev[key]];
         newPoints.splice(insertIndex, 0, [yaw, pitch]);
-        return { ...prev, polygon: newPoints };
+        return { ...prev, [key]: newPoints };
       }
       return prev;
     });
   };
 
   const handleViewerDblClick = (data) => {
-    if (drawingMode === 'polygon') {
-      finishPolygon();
+    if (drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier') {
+      finishDrawing();
     }
   };
 
   const handleEditPointDelete = (pointIndex) => {
     setDraftMarker(prev => {
-      if (prev && prev.polygon) {
-        const newPoints = [...prev.polygon];
+      const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
+      if (prev && key) {
+        const newPoints = [...prev[key]];
         newPoints.splice(pointIndex, 1);
-        return { ...prev, polygon: newPoints };
+        return { ...prev, [key]: newPoints };
       }
       return prev;
     });
@@ -577,6 +621,8 @@ function App() {
         const titleFontSize = currentMarker.titleStyle?.fontSize || 12;
         const showTitle = currentMarker.showTitle !== false;
 
+        const titleRadius = currentMarker.titleStyle?.borderRadius !== undefined ? `${currentMarker.titleStyle.borderRadius}px` : '4px';
+
         return {
           ...currentMarker,
           html: `
@@ -588,7 +634,7 @@ function App() {
                 ${isEditing ? `<div class="resize-corner-handle" data-marker-id="${currentMarker.id}"></div>` : ''}
               </div>
               ${showTitle ? `
-                <div class="marker-title" style="background: ${titleBg}; color: ${titleColor}; padding: ${titlePadding}px ${titlePadding * 2}px; border: ${titleBorderWidth}px solid ${titleBorderColor}; border-radius: 4px; font-size: ${titleFontSize}px; font-weight: bold; margin-top: 6px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
+                <div class="marker-title" style="background: ${titleBg}; color: ${titleColor}; padding: ${titlePadding}px ${titlePadding * 2}px; border: ${titleBorderWidth}px solid ${titleBorderColor}; border-radius: ${titleRadius}; font-size: ${titleFontSize}px; font-weight: bold; margin-top: 6px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
                   ${currentMarker.title || '未命名'}
                 </div>
               ` : ''}
@@ -596,7 +642,7 @@ function App() {
           `,
           anchor: 'bottom center'
         };
-      } else if (currentMarker.polygon) {
+      } else if (currentMarker.polygon || currentMarker.polyline) {
         const strokeColor = currentMarker.strokeColor || '#00ffcc';
         const strokeWidth = `${currentMarker.strokeWidth || 2.5}px`;
         const fillColor = currentMarker.fillColor || '#00ffcc';
@@ -604,6 +650,8 @@ function App() {
         const fillStyle = currentMarker.fillStyle || 'solid';
 
         const hexToRgba = (hex, alpha) => {
+          if (!hex) return 'transparent';
+          if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
           let c = hex.substring(1);
           if (c.length === 3) {
             c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
@@ -614,11 +662,16 @@ function App() {
           return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         };
 
-        const stroke = hexToRgba(strokeColor, 0.8);
-        const fill = fillStyle === 'none' ? 'none' : hexToRgba(fillColor, fillOpacity);
+        const stroke = hexToRgba(strokeColor, 1);
+        const fill = currentMarker.polyline ? 'none' : (fillStyle === 'none' ? 'none' : hexToRgba(fillColor, fillOpacity));
+
+        let renderedMarker = { ...currentMarker };
+        if (currentMarker.polyline && currentMarker.id.includes('bezier')) {
+          renderedMarker.polyline = getBezierPoints(currentMarker.polyline);
+        }
 
         return {
-          ...currentMarker,
+          ...renderedMarker,
           svgStyle: {
             fill: fill,
             stroke: stroke,
@@ -629,8 +682,8 @@ function App() {
       return currentMarker;
     });
     
-    // Inject drafting markers for polygon creation
-    if (drawingMode === 'polygon' && draftPoints.length > 0) {
+    // Inject drafting markers for polygon/line/bezier creation
+    if ((drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier') && draftPoints.length > 0) {
       draftPoints.forEach((pt, index) => {
         list.push({
           id: `draft-pt-${index}`,
@@ -640,7 +693,7 @@ function App() {
         });
       });
       
-      if (draftPoints.length >= 3) {
+      if (drawingMode === 'polygon' && draftPoints.length >= 3) {
         list.push({
           id: 'draft-polygon',
           polygon: draftPoints,
@@ -652,10 +705,10 @@ function App() {
             pointerEvents: 'none'
           }
         });
-      } else if (draftPoints.length === 2) {
+      } else if (draftPoints.length >= 2) {
         list.push({
           id: 'draft-polyline',
-          polyline: draftPoints,
+          polyline: drawingMode === 'bezier' ? getBezierPoints(draftPoints) : draftPoints,
           svgStyle: {
             stroke: '#00e5ff',
             strokeWidth: '3px',
@@ -666,28 +719,81 @@ function App() {
       }
     }
 
-    // Inject edit vertices for active polygon editing
-    if (editingPolygonId && draftMarker && draftMarker.polygon) {
-      const points = draftMarker.polygon;
+    // Inject edit vertices for active polygon/polyline editing
+    const editPoints = editingPolygonId && draftMarker && (draftMarker.polygon || draftMarker.polyline);
+    if (editPoints) {
+      const points = draftMarker.polygon || draftMarker.polyline;
+      const isPolygon = !!draftMarker.polygon;
+      const isBezier = draftMarker.id?.includes('bezier');
       const n = points.length;
+
+      // If it is bezier, inject Photoshop style handle connector lines
+      if (isBezier && n >= 2) {
+        list.push({
+          id: 'bezier-handle-line-1',
+          polyline: [points[0], points[1]],
+          svgStyle: {
+            stroke: 'rgba(255, 255, 255, 0.65)',
+            strokeWidth: '1.5px',
+            strokeDasharray: '3,3',
+            pointerEvents: 'none'
+          }
+        });
+        if (n >= 3) {
+          list.push({
+            id: 'bezier-handle-line-2',
+            polyline: [points[n - 1], points[n - 2]],
+            svgStyle: {
+              stroke: 'rgba(255, 255, 255, 0.65)',
+              strokeWidth: '1.5px',
+              strokeDasharray: '3,3',
+              pointerEvents: 'none'
+            }
+          });
+        }
+      }
+
       points.forEach((pt, index) => {
         // 1. 添加真实控制点
-        list.push({
-          id: `edit-handle-${index}`,
-          position: { yaw: pt[0], pitch: pt[1] },
-          html: `
+        let handleHtml = '';
+        if (isBezier) {
+          if (index === 0 || index === n - 1) {
+            // Endpoints: P0 and Pn-1
+            handleHtml = `
+              <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                <div class="edit-handle-marker" data-handle-index="${index}" style="background: #007aff; width: 12px; height: 12px; border-radius: 2px; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
+              </div>
+            `;
+          } else {
+            // Control handles: P1 and P2
+            handleHtml = `
+              <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                <div class="edit-handle-marker" data-handle-index="${index}" style="background: #ffffff; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #ff3b30; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
+              </div>
+            `;
+          }
+        } else {
+          // Default styling
+          handleHtml = `
             <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
               <div class="edit-handle-marker" data-handle-index="${index}" style="background: #ff3b30; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
               <div class="edit-delete-marker" data-handle-index="${index}" style="position: absolute; top: -2px; right: -2px; background: white; color: #ff3b30; font-size: 10px; width: 14px; height: 14px; border-radius: 50%; border: 1px solid #ff3b30; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; box-shadow: 0 0 3px rgba(0,0,0,0.5); pointer-events: auto;">×</div>
             </div>
-          `,
+          `;
+        }
+
+        list.push({
+          id: `edit-handle-${index}`,
+          position: { yaw: pt[0], pitch: pt[1] },
+          html: handleHtml,
           anchor: 'center',
-          tooltip: '拖动修改位置，点击红叉删除'
+          tooltip: isBezier ? '拖动修改曲线端点或控制柄' : '拖动修改位置，点击红叉删除'
         });
 
-        // 2. 添加虚拟中点（仅在多边形至少有3个点时）
-        if (n >= 3) {
-          const nextPt = points[(index + 1) % n];
+        // 2. 添加虚拟中点 (Bezier 曲线不需要中点)
+        const showMid = !isBezier && (isPolygon ? (n >= 3) : (index < n - 1));
+        if (showMid) {
+          const nextPt = isPolygon ? points[(index + 1) % n] : points[index + 1];
           let yaw1 = pt[0];
           let yaw2 = nextPt[0];
           let pitch1 = pt[1];
@@ -851,15 +957,14 @@ function App() {
                 backgroundColor: '#00dfb6',
                 boxShadow: '0 0 8px #00dfb6'
               }} />
-              {drawingMode === 'point'
-                ? '提示：请在全景图上左键点击，放置点位标签'
-                : drawingMode === 'image_text'
-                ? '提示：请在全景图上左键点击，放置图文标签'
-                : drawingMode === 'line'
-                ? '提示：请在全景图上点击绘制折线节点，双击完成绘制'
-                : drawingMode === 'bezier'
-                ? '提示：请在全景图上点击绘制贝塞尔控制点，双击完成绘制'
-                : '提示：请在全景图上点击绘制多边形顶点，双击完成绘制'}
+              {(() => {
+                const selectedTool = registeredTools.find(t => t.id === drawingMode);
+                if (!selectedTool) return '';
+                if (selectedTool.type === 'point') {
+                  return `提示：请在全景图上左键点击，放置${selectedTool.name}标签`;
+                }
+                return `提示：请在全景图上点击绘制${selectedTool.name}节点/顶点，双击完成绘制`;
+              })()}
             </div>
           )}
 

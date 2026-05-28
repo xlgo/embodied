@@ -1,4 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+
+// 动态扫描 tools/ 目录下的所有标绘工具组件 (*Tool.jsx)
+const toolModules = import.meta.glob('./tools/*Tool.jsx', { eager: true });
+export const registeredTools = Object.keys(toolModules)
+  .map((key) => toolModules[key].default)
+  .filter((t) => t && t.id);
 
 // Numeric input with plus/minus buttons
 function StepInput({ value, onChange, min = 1, max = 2000, step = 1 }) {
@@ -69,41 +75,52 @@ function StepInput({ value, onChange, min = 1, max = 2000, step = 1 }) {
   );
 }
 
-// Color picker row
+import { ConfigProvider, ColorPicker } from 'antd';
+
+// 颜色输入组件，使用 antd 的 ColorPicker 并自定义触发外观
 function ColorInput({ label, value, onChange }) {
+  // 将颜色值转换为 antd 兼容的格式，并确保能正确处理 rgba/rgb/hex 等格式
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', position: 'relative' }}>
       <span style={{ fontSize: '12px', color: '#a0aec0' }}>{label}</span>
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <div style={{
-          width: '54px',
-          height: '24px',
-          borderRadius: '4px',
-          border: '1px solid #2e354f',
-          backgroundColor: value,
-          cursor: 'pointer',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+      
+      {/* 使用 ConfigProvider 强制将弹窗挂载到 document.body，并通过 theme.token.zIndexPopupBase 强制提升外部 Portal 容器的 z-index，彻底避免被面板遮挡或裁剪 */}
+      <ConfigProvider
+        getPopupContainer={() => document.body}
+        theme={{
+          token: {
+            zIndexPopupBase: 100000
+          }
+        }}
+      >
+        <ColorPicker
+          value={value}
+          onChange={(color) => {
+            // 获取 rgba 字符串格式，确保包含透明度
+            onChange(color.toRgbString());
+          }}
+          trigger="click"
+        >
+          {/* 彩色矩形选择条触发器 */}
+          <div
             style={{
-              position: 'absolute',
-              opacity: 0,
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              cursor: 'pointer'
+              width: '180px',
+              height: '28px',
+              borderRadius: '4px',
+              border: '1px solid #2e354f',
+              backgroundColor: value,
+              cursor: 'pointer',
+              boxSizing: 'border-box',
+              transition: 'all 0.2s',
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)'
             }}
           />
-        </div>
-      </div>
+        </ColorPicker>
+      </ConfigProvider>
     </div>
   );
 }
+
 
 export default function ConfigPanel({
   panelPos,
@@ -202,28 +219,10 @@ export default function ConfigPanel({
     });
   };
 
-  const isPoint = draftMarker?.type === 'point';
+  const activeTool = draftMarker ? registeredTools.find(t => t.match && t.match(draftMarker)) : null;
+  const isPoint = activeTool ? activeTool.type === 'point' : (draftMarker?.type === 'point');
   const showConfigDetails = draftMarker !== null;
   const isMinimized = panelHeight < 240;
-
-  const presetIcons = [
-    { icon: '📍', color: '#ff3b30', label: '红色定位销' },
-    { icon: '📍', color: '#007aff', label: '蓝色定位销' },
-    { icon: '📍', color: '#34c759', label: '绿色定位销' },
-    { icon: '📍', color: '#ffcc00', label: '黄色定位销' },
-    { icon: '🚩', color: '#ff3b30', label: '红旗' },
-    { icon: '🏠', color: '#5856d6', label: '房屋' },
-    { icon: '⚠️', color: '#ff9500', label: '警示' },
-    { icon: '💬', color: '#007aff', label: '对话' },
-  ];
-
-  const handleSelectIcon = (iconItem) => {
-    onUpdateDraft({
-      icon: iconItem.icon,
-      color: iconItem.color
-    });
-    setShowIconList(false);
-  };
 
   return (
     <div
@@ -234,7 +233,7 @@ export default function ConfigPanel({
         left: `${panelPos.x}px`,
         top: `${panelPos.y}px`,
         zIndex: 9991,
-        width: '320px',
+        width: showConfigDetails ? '320px' : 'fit-content',
         height: showConfigDetails ? `${panelHeight}px` : '46px',
         backgroundColor: 'rgba(22, 25, 34, 0.95)',
         backdropFilter: 'blur(10px)',
@@ -448,79 +447,17 @@ export default function ConfigPanel({
             <circle cx="9" cy="13" r="1.2" />
           </svg>
 
-          <button 
-            className={`tb-btn ${drawingMode === 'point' ? 'active' : ''}`} 
-            title="点位标绘" 
-            onClick={() => onSelectTool('point')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-              <circle cx="12" cy="10" r="2.5" fill="currentColor" />
-              <path d="M7 22c0-1.1 2.24-2 5-2s5 .9 5 2" />
-            </svg>
-          </button>
-
-          <button 
-            className={`tb-btn ${drawingMode === 'image_text' ? 'active' : ''}`} 
-            title="图文标绘" 
-            onClick={() => onSelectTool('image_text')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-              <line x1="9" y1="21" x2="9" y2="9" />
-              <path d="M13 13h4M13 17h4" />
-            </svg>
-          </button>
-
-          <button 
-            className={`tb-btn ${drawingMode === 'polygon' ? 'active' : ''}`} 
-            title="多边形标绘" 
-            onClick={() => onSelectTool('polygon')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 3 22 10 18 21 6 21 2 10" />
-            </svg>
-          </button>
-
-          <button 
-            className={`tb-btn ${drawingMode === 'line' ? 'active' : ''}`} 
-            title="线段标绘" 
-            onClick={() => onSelectTool('line')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h7v6h6v6h4" />
-              <polyline points="16 15 19 18 16 21" />
-            </svg>
-          </button>
-
-          <button 
-            className={`tb-btn ${drawingMode === 'bezier' ? 'active' : ''}`} 
-            title="贝塞尔曲线标绘" 
-            onClick={() => onSelectTool('bezier')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 17c5 0 5-10 10-10s5 10 8 10" />
-              <circle cx="3" cy="17" r="2" fill="currentColor" />
-              <circle cx="21" cy="17" r="2" fill="currentColor" />
-              <circle cx="8" cy="7" r="1.2" fill="currentColor" />
-              <circle cx="13" cy="7" r="1.2" fill="currentColor" />
-            </svg>
-          </button>
-
-          <button 
-            className="tb-btn" 
-            title="删除" 
-            onClick={() => onAction('delete')}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 20h4" />
-              <path d="M15 3.5l5.5 5.5-12 12H3v-5.5l12-12z" />
-              <path d="M12 6.5l5.5 5.5" />
-              <path d="M3 20c3.5-1 7 1 10.5-1" />
-            </svg>
-          </button>
-          <div style={{ width: '1px', height: '20px', backgroundColor: '#2e354f', margin: '0 2px', marginLeft: 'auto' }} />
+          {registeredTools.map((tool) => (
+            <button
+              key={tool.id}
+              className={`tb-btn ${drawingMode === tool.id ? 'active' : ''}`}
+              title={tool.name}
+              onClick={() => onSelectTool(tool.id)}
+            >
+              {tool.icon}
+            </button>
+          ))}
+          <div style={{ width: '1px', height: '20px', backgroundColor: '#2e354f', margin: '0 2px' }} />
           <button
             onClick={onCancel}
             title="关闭工具栏"
@@ -561,7 +498,7 @@ export default function ConfigPanel({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '15px' }}>{isPoint ? '📍' : '⬡'}</span>
             <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '0.5px' }}>
-              {isPoint ? '配置点标签属性' : '配置区域样式属性'}
+              {activeTool ? `配置【${activeTool.name}】样式属性` : (isPoint ? '配置点标签属性' : '配置区域样式属性')}
             </span>
           </div>
           <button
@@ -700,224 +637,13 @@ export default function ConfigPanel({
                   </>
                 )}
 
-                {activeTab === 'style' && (
-                  // Tab 2: Style Settings
-                  isPoint ? (
-                    // POINT STYLE SETTINGS
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-                        <span style={{ fontSize: '12px', color: '#a0aec0' }}>图标样式</span>
-                        <div
-                          onClick={() => setShowIconList(!showIconList)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: draftMarker?.color || '#ff3b30',
-                            border: '2px solid white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '15px',
-                            cursor: 'pointer'
-                          }}
-                          className="icon-preview-btn"
-                        >
-                          {draftMarker?.icon || '📍'}
-                        </div>
-
-                        {showIconList && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '36px',
-                            right: '0',
-                            backgroundColor: '#161922',
-                            border: '1px solid #2e354f',
-                            borderRadius: '8px',
-                            padding: '8px',
-                            zIndex: 9995,
-                            width: '180px',
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(4, 1fr)',
-                            gap: '8px',
-                            boxShadow: '0 6px 20px rgba(0,0,0,0.6)'
-                          }}>
-                            {presetIcons.map((item, idx) => (
-                              <div
-                                key={idx}
-                                onClick={() => handleSelectIcon(item)}
-                                style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '50%',
-                                  backgroundColor: item.color,
-                                  border: '1.5px solid white',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '15px',
-                                  cursor: 'pointer'
-                                }}
-                                title={item.label}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#a0aec0' }}>图标大小</span>
-                        <StepInput
-                          value={draftMarker?.iconSize || 28}
-                          onChange={(val) => onUpdateDraft({ iconSize: val })}
-                          min={16}
-                          max={64}
-                          step={2}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#a0aec0' }}>显示标题</span>
-                        <label className="toggle-switch">
-                          <input
-                            type="checkbox"
-                            checked={draftMarker?.showTitle !== false}
-                            onChange={(e) => onUpdateDraft({ showTitle: e.target.checked })}
-                          />
-                          <span className="slider"></span>
-                        </label>
-                      </div>
-
-                      {draftMarker?.showTitle !== false && (
-                        <div style={{
-                          backgroundColor: 'rgba(28, 31, 46, 0.4)',
-                          border: '1px solid #1c1f2e',
-                          borderRadius: '8px',
-                          padding: '10px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                          marginTop: '4px'
-                        }}>
-                          <ColorInput
-                            label="字体颜色"
-                            value={draftMarker?.titleStyle?.color || '#ffffff'}
-                            onChange={(val) => onUpdateDraft({
-                              titleStyle: { ...(draftMarker?.titleStyle || {}), color: val }
-                            })}
-                          />
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '12px', color: '#a0aec0' }}>字体大小</span>
-                            <StepInput
-                              value={draftMarker?.titleStyle?.fontSize || 12}
-                              onChange={(val) => onUpdateDraft({
-                                titleStyle: { ...(draftMarker?.titleStyle || {}), fontSize: val }
-                              })}
-                              min={9}
-                              max={36}
-                              step={1}
-                            />
-                          </div>
-                          <ColorInput
-                            label="背景颜色"
-                            value={draftMarker?.titleStyle?.backgroundColor || 'rgba(0,0,0,0.8)'}
-                            onChange={(val) => onUpdateDraft({
-                              titleStyle: { ...(draftMarker?.titleStyle || {}), backgroundColor: val }
-                            })}
-                          />
-                          <ColorInput
-                            label="边框颜色"
-                            value={draftMarker?.titleStyle?.borderColor || '#ffffff'}
-                            onChange={(val) => onUpdateDraft({
-                              titleStyle: { ...(draftMarker?.titleStyle || {}), borderColor: val }
-                            })}
-                          />
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框大小</span>
-                            <StepInput
-                              value={draftMarker?.titleStyle?.borderWidth || 1}
-                              onChange={(val) => onUpdateDraft({
-                                titleStyle: { ...(draftMarker?.titleStyle || {}), borderWidth: val }
-                              })}
-                              min={0}
-                              max={10}
-                              step={1}
-                            />
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框距离</span>
-                            <StepInput
-                              value={draftMarker?.titleStyle?.padding || 4}
-                              onChange={(val) => onUpdateDraft({
-                                titleStyle: { ...(draftMarker?.titleStyle || {}), padding: val }
-                              })}
-                              min={0}
-                              max={20}
-                              step={1}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    // POLYGON STYLE SETTINGS
-                    <>
-                      <ColorInput
-                        label="边框线条颜色"
-                        value={draftMarker?.strokeColor || '#00ffcc'}
-                        onChange={(val) => onUpdateDraft({ strokeColor: val })}
-                      />
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#a0aec0' }}>边框线条粗细</span>
-                        <StepInput
-                          value={draftMarker?.strokeWidth || 2}
-                          onChange={(val) => onUpdateDraft({ strokeWidth: val })}
-                          min={1}
-                          max={10}
-                          step={1}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span className="form-label">填充方式</span>
-                        <select
-                          className="custom-select"
-                          value={draftMarker?.fillStyle || 'solid'}
-                          onChange={(e) => onUpdateDraft({ fillStyle: e.target.value })}
-                        >
-                          <option value="solid">实色填充</option>
-                          <option value="none">无填充 (仅保留边框)</option>
-                        </select>
-                      </div>
-
-                      {draftMarker?.fillStyle !== 'none' && (
-                        <>
-                          <ColorInput
-                            label="填充区域颜色"
-                            value={draftMarker?.fillColor || '#00ffcc'}
-                            onChange={(val) => onUpdateDraft({ fillColor: val })}
-                          />
-                          
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#a0aec0', marginBottom: '4px' }}>
-                              <span>填充不透明度</span>
-                              <span style={{ fontFamily: 'monospace' }}>{Math.round((draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.25) * 100)}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.05"
-                              value={draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.25}
-                              onChange={(e) => onUpdateDraft({ fillOpacity: parseFloat(e.target.value) })}
-                              style={{ width: '100%', cursor: 'pointer', height: '6px', background: '#2e354f', outline: 'none', borderRadius: '3px' }}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )
+                {activeTab === 'style' && activeTool?.StylePanel && (
+                  <activeTool.StylePanel
+                    draftMarker={draftMarker}
+                    onUpdateDraft={onUpdateDraft}
+                    StepInput={StepInput}
+                    ColorInput={ColorInput}
+                  />
                 )}
 
                 {activeTab === 'action' && (

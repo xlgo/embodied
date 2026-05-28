@@ -4,6 +4,33 @@ import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 
+function getBezierPoints(points, steps = 100) {
+  if (!points || points.length < 2) return points || [];
+  const n = points.length - 1;
+  const curvePoints = [];
+  
+  const binomial = (n, k) => {
+    let coeff = 1;
+    for (let i = 1; i <= k; i++) {
+      coeff = coeff * (n - i + 1) / i;
+    }
+    return coeff;
+  };
+  
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps;
+    let yaw = 0;
+    let pitch = 0;
+    for (let i = 0; i <= n; i++) {
+      const coeff = binomial(n, i) * Math.pow(1 - t, n - i) * Math.pow(t, i);
+      yaw += coeff * points[i][0];
+      pitch += coeff * points[i][1];
+    }
+    curvePoints.push([yaw, pitch]);
+  }
+  return curvePoints;
+}
+
 const PhotoSphereComponent = forwardRef(({
   panorama,
   markers = [],
@@ -93,7 +120,7 @@ const PhotoSphereComponent = forwardRef(({
         const markerId = resizeHandle.getAttribute('data-marker-id');
         const markerObj = markersRef.current.find(m => m.id === markerId);
         const initialSize = markerObj?.iconSize || 24;
-        
+
         draggingResizeRef.current = {
           id: markerId,
           initialSize,
@@ -101,7 +128,7 @@ const PhotoSphereComponent = forwardRef(({
           startY: e.clientY
         };
         isDraggingRef.current = true;
-        
+
         if (viewerRef.current) {
           viewerRef.current.setOption('mousemove', false); // Disable panorama panning
           viewerRef.current.setOption('moveSpeed', 0); // Lock movement speed
@@ -145,12 +172,14 @@ const PhotoSphereComponent = forwardRef(({
         const currentEditingId = editingPolygonIdRef.current;
         if (currentEditingId && markersPluginRef.current) {
           const activePolygon = markersRef.current.find(m => m.id === currentEditingId);
-          if (activePolygon && activePolygon.polygon) {
-            const points = activePolygon.polygon;
+          const shapeKey = activePolygon?.polygon ? 'polygon' : activePolygon?.polyline ? 'polyline' : null;
+          if (activePolygon && shapeKey) {
+            const points = activePolygon[shapeKey];
+            const isPolygonType = shapeKey === 'polygon';
             const n = points.length;
             const pt = points[index];
-            const nextPt = points[(index + 1) % n];
-            
+            const nextPt = isPolygonType ? points[(index + 1) % n] : points[index + 1];
+
             let yaw1 = pt[0];
             let yaw2 = nextPt[0];
             let pitch1 = pt[1];
@@ -177,18 +206,18 @@ const PhotoSphereComponent = forwardRef(({
             newPoints.splice(index + 1, 0, [midYaw, midPitch]);
 
             // Mutate markersRef internally to prevent lagging in pointermove
-            activePolygon.polygon = newPoints;
+            activePolygon[shapeKey] = newPoints;
 
             // Fast local update
             markersPluginRef.current.updateMarker({
               id: currentEditingId,
-              polygon: newPoints
+              [shapeKey]: newPoints
             }, false);
 
             // Remove the clicked virtual handle
             try {
               markersPluginRef.current.removeMarker(`virtual-handle-${index}`);
-            } catch (err) {}
+            } catch (err) { }
 
             // Append a temporary real handle
             try {
@@ -203,7 +232,7 @@ const PhotoSphereComponent = forwardRef(({
                 `,
                 anchor: 'center'
               }, false);
-            } catch (err) {}
+            } catch (err) { }
 
             markersPluginRef.current.renderMarkers();
 
@@ -231,7 +260,7 @@ const PhotoSphereComponent = forwardRef(({
       const pointMarker = e.target.closest('.draggable-point-marker');
       if (pointMarker && drawingMode === 'none' && !editingPolygonIdRef.current) {
         const markerId = pointMarker.getAttribute('data-marker-id');
-        
+
         // ONLY allow dragging if this point is currently being edited
         if (markerId !== editingPointIdRef.current) {
           return;
@@ -278,7 +307,7 @@ const PhotoSphereComponent = forwardRef(({
         const deltaY = e.clientY - startY;
         const delta = Math.round((deltaX + deltaY) / 2);
         const newSize = Math.max(16, Math.min(64, initialSize + delta));
-        
+
         if (onMarkerResizeRef.current) {
           onMarkerResizeRef.current(id, newSize);
         }
@@ -301,12 +330,17 @@ const PhotoSphereComponent = forwardRef(({
             const currentEditingId = editingPolygonIdRef.current;
             if (currentEditingId) {
               const activePolygon = markersRef.current.find(m => m.id === currentEditingId);
-              if (activePolygon && activePolygon.polygon) {
-                const newPoints = [...activePolygon.polygon];
+              const shapeKey = activePolygon?.polygon ? 'polygon' : activePolygon?.polyline ? 'polyline' : null;
+              if (activePolygon && shapeKey) {
+                const newPoints = [...activePolygon[shapeKey]];
                 newPoints[index] = [yaw, pitch];
+                
+                const isBezier = currentEditingId.includes('bezier');
+                const updatePoints = isBezier ? getBezierPoints(newPoints) : newPoints;
+
                 markersPluginRef.current.updateMarker({
                   id: currentEditingId,
-                  polygon: newPoints
+                  [shapeKey]: updatePoints
                 }, false);
               }
             }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
-// 预设图标列表
 const presetIcons = [
+  { icon: '💬', color: '#007aff', label: '蓝色对话框' },
   { icon: '📍', color: '#ff3b30', label: '红色定位销' },
   { icon: '📍', color: '#007aff', label: '蓝色定位销' },
   { icon: '📍', color: '#34c759', label: '绿色定位销' },
@@ -9,33 +9,33 @@ const presetIcons = [
   { icon: '🚩', color: '#ff3b30', label: '红旗' },
   { icon: '🏠', color: '#5856d6', label: '房屋' },
   { icon: '⚠️', color: '#ff9500', label: '警示' },
-  { icon: '💬', color: '#007aff', label: '对话' },
 ];
 
 export default {
-  id: 'point',
-  name: '点位标绘',
+  id: 'image_text',
+  name: '图文标绘',
   type: 'point',
-  match: (m) => m.type === 'point' && m.icon !== '💬',
+  match: (m) => m.type === 'point' && m.icon === '💬',
   icon: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-      <circle cx="12" cy="10" r="2.5" fill="currentColor" />
-      <path d="M7 22c0-1.1 2.24-2 5-2s5 .9 5 2" />
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="9" y1="21" x2="9" y2="9" />
+      <path d="M13 13h4M13 17h4" />
     </svg>
   ),
   defaultConfig: {
     type: 'point',
-    title: '新建标签',
-    color: '#ff3b30',
-    icon: '📍',
+    title: '新建图文标签',
+    color: '#007aff',
+    icon: '💬',
     iconSize: 28,
     showTitle: true,
     titleStyle: {
       color: '#ffffff',
       fontSize: 12,
       backgroundColor: 'rgba(0,0,0,0.85)',
-      borderColor: '#ff3b30',
+      borderColor: '#007aff',
       borderWidth: 1.5,
       padding: 5
     },
@@ -47,7 +47,6 @@ export default {
     windowHeight: 600,
     images: []
   },
-  // 属性配置面板组件
   StylePanel: function StylePanel({ draftMarker, onUpdateDraft, StepInput, ColorInput }) {
     const [showIconList, setShowIconList] = useState(false);
 
@@ -84,7 +83,7 @@ export default {
               width: '38px',
               height: '38px',
               borderRadius: '50%',
-              backgroundColor: draftMarker?.color || '#ff3b30',
+              backgroundColor: draftMarker?.color || '#007aff',
               border: '2px solid white',
               display: 'flex',
               alignItems: 'center',
@@ -93,7 +92,7 @@ export default {
               color: 'white',
               boxShadow: '0 2px 8px rgba(0,0,0,0.35)'
             }}>
-              {draftMarker?.icon || '📍'}
+              {draftMarker?.icon || '💬'}
             </div>
           </div>
 
@@ -201,7 +200,7 @@ export default {
             />
             <ColorInput
               label="边框颜色"
-              value={draftMarker?.titleStyle?.borderColor || '#ffffff'}
+              value={draftMarker?.titleStyle?.borderColor || '#007aff'}
               onChange={(val) => onUpdateDraft({
                 titleStyle: { ...(draftMarker?.titleStyle || {}), borderColor: val }
               })}
