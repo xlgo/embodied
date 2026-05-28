@@ -81,7 +81,26 @@ export default function MarkerList({
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 'bold', fontSize: '13px', wordBreak: 'break-all', color: titleColor, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {isPoint ? `${m.icon || '📍'} ${m.title || '未命名'}` : `⬡ 多边形区域`}
+                  {isPoint ? (
+                    <>
+                      {/* 如果是 SVG 图标路径，则通过 inline SVG 进行渲染以防显示出原始 HTML 文本 */}
+                      {typeof m.icon === 'string' && (m.icon.includes('<path') || m.icon.includes('<circle')) ? (
+                        <svg 
+                          viewBox="0 0 24 24" 
+                          width="14" 
+                          height="14" 
+                          fill="currentColor" 
+                          style={{ flexShrink: 0 }}
+                          dangerouslySetInnerHTML={{ __html: m.icon }} 
+                        />
+                      ) : (
+                        <span>{m.icon || '📍'}</span>
+                      )}
+                      <span>{m.title || '未命名'}</span>
+                    </>
+                  ) : (
+                    <span>⬡ 多边形区域</span>
+                  )}
                 </span>
                 {isSelected && (
                   <span style={{ fontSize: '10px', color: isEditing ? '#ff9500' : '#00e5ff', fontWeight: 'bold' }}>
