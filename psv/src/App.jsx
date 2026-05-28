@@ -646,17 +646,17 @@ function App() {
           let boxStyle = '';
           
           if (textPosition === 'top-right') {
-            lineSvg = `<svg style="position: absolute; overflow: visible; left: 0; top: -25px; width: 30px; height: 25px; pointer-events: none;"><path d="M 0 25 L 0 0 L 30 0" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
-            boxStyle = `position: absolute; left: 30px; top: -25px; transform: translateY(-50%);`;
+            lineSvg = `<svg style="position: absolute; overflow: visible; left: 0; top: -25px; width: 35px; height: 25px; pointer-events: none;"><path d="M 0 25 L 15 6 L 35 6" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; left: 35px; top: -19px; transform: translateY(-50%);`;
           } else if (textPosition === 'top-left') {
-            lineSvg = `<svg style="position: absolute; overflow: visible; right: 0; top: -25px; width: 30px; height: 25px; pointer-events: none;"><path d="M 30 25 L 30 0 L 0 0" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
-            boxStyle = `position: absolute; right: 30px; top: -25px; transform: translateY(-50%);`;
+            lineSvg = `<svg style="position: absolute; overflow: visible; right: 0; top: -25px; width: 35px; height: 25px; pointer-events: none;"><path d="M 35 25 L 20 6 L 0 6" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; right: 35px; top: -19px; transform: translateY(-50%);`;
           } else if (textPosition === 'bottom-right') {
-            lineSvg = `<svg style="position: absolute; overflow: visible; left: 0; top: 0; width: 30px; height: 25px; pointer-events: none;"><path d="M 0 0 L 0 25 L 30 25" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
-            boxStyle = `position: absolute; left: 30px; top: 25px; transform: translateY(-50%);`;
+            lineSvg = `<svg style="position: absolute; overflow: visible; left: 0; top: 0; width: 35px; height: 25px; pointer-events: none;"><path d="M 0 0 L 15 19 L 35 19" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; left: 35px; top: 19px; transform: translateY(-50%);`;
           } else if (textPosition === 'bottom-left') {
-            lineSvg = `<svg style="position: absolute; overflow: visible; right: 0; top: 0; width: 30px; height: 25px; pointer-events: none;"><path d="M 30 0 L 30 25 L 0 25" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
-            boxStyle = `position: absolute; right: 30px; top: 25px; transform: translateY(-50%);`;
+            lineSvg = `<svg style="position: absolute; overflow: visible; right: 0; top: 0; width: 35px; height: 25px; pointer-events: none;"><path d="M 35 0 L 20 19 L 0 19" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; right: 35px; top: 19px; transform: translateY(-50%);`;
           }
 
           return {
