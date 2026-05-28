@@ -612,6 +612,58 @@ function App() {
       const isEditing = (editingPointId === currentMarker.id || editingPolygonId === currentMarker.id);
 
       if (currentMarker.type === 'point') {
+        const isImageText = currentMarker.icon === '💬';
+        
+        if (isImageText) {
+          const leaderColor = currentMarker.leaderColor || currentMarker.titleStyle?.borderColor || '#00ffcc';
+          const textColor = currentMarker.textColor || currentMarker.titleStyle?.color || '#ffffff';
+          const textBg = currentMarker.textBg || currentMarker.titleStyle?.backgroundColor || 'rgba(22, 25, 34, 0.9)';
+          const textPosition = currentMarker.textPosition || 'top-right';
+          const showTitle = currentMarker.showTitle !== false;
+          
+          let lineSvg = '';
+          let boxStyle = '';
+          
+          if (textPosition === 'top-right') {
+            lineSvg = `<svg style="position: absolute; overflow: visible; left: 0; top: -25px; width: 30px; height: 25px; pointer-events: none;"><path d="M 0 25 L 0 0 L 30 0" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; left: 30px; top: -25px; transform: translateY(-50%);`;
+          } else if (textPosition === 'top-left') {
+            lineSvg = `<svg style="position: absolute; overflow: visible; right: 0; top: -25px; width: 30px; height: 25px; pointer-events: none;"><path d="M 30 25 L 30 0 L 0 0" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; right: 30px; top: -25px; transform: translateY(-50%);`;
+          } else if (textPosition === 'bottom-right') {
+            lineSvg = `<svg style="position: absolute; overflow: visible; left: 0; top: 0; width: 30px; height: 25px; pointer-events: none;"><path d="M 0 0 L 0 25 L 30 25" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; left: 30px; top: 25px; transform: translateY(-50%);`;
+          } else if (textPosition === 'bottom-left') {
+            lineSvg = `<svg style="position: absolute; overflow: visible; right: 0; top: 0; width: 30px; height: 25px; pointer-events: none;"><path d="M 30 0 L 30 25 L 0 25" fill="none" stroke="${leaderColor}" stroke-width="2" /></svg>`;
+            boxStyle = `position: absolute; right: 30px; top: 25px; transform: translateY(-50%);`;
+          }
+
+          return {
+            ...currentMarker,
+            html: `
+              <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="position: relative; width: 0; height: 0; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
+                <!-- 地面小锚点 -->
+                <div style="position: absolute; left: -6px; top: -3px; width: 12px; height: 6px; border-radius: 50%; background: ${leaderColor}; box-shadow: 0 0 8px ${leaderColor};"></div>
+                
+                <!-- 指引线 -->
+                ${lineSvg}
+                
+                <!-- 文本框 -->
+                ${showTitle ? `
+                  <div class="${isEditing ? 'selected-bounding-box' : ''}" style="${boxStyle} white-space: nowrap; pointer-events: auto;">
+                    <div style="background: ${leaderColor}; padding: 1.5px; clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));">
+                      <div style="background: ${textBg}; color: ${textColor}; padding: 4px 10px; clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); font-size: 13px; font-weight: bold;">
+                        ${currentMarker.title || '未命名'}
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            `,
+            anchor: 'center'
+          };
+        }
+
         const size = currentMarker.iconSize || 28;
         const titleColor = currentMarker.titleStyle?.color || '#ffffff';
         const titleBg = currentMarker.titleStyle?.backgroundColor || 'rgba(0,0,0,0.8)';
