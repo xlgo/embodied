@@ -212,7 +212,7 @@ function App() {
 
   // Floating Editor Panel Visibility, Positions & Dimension
   const [editorVisible, setEditorVisible] = useState(false);
-  const [panelPos, setPanelPos] = useState({ x: 30, y: 30 });
+  const [panelPos, setPanelPos] = useState({ x: 680, y: 30 });
   const [panelHeight, setPanelHeight] = useState(385);
 
   const panoramaUrl = '/sphere.jpg';
@@ -221,7 +221,7 @@ function App() {
   // Toggles workspace editor panel visibility when user clicks edit
   const handleStartEditToolbar = () => {
     setEditorVisible(true);
-    setPanelPos({ x: 30, y: 30 });
+    setPanelPos({ x: 680, y: 30 });
   };
 
   const handleMarkerClick = (marker) => {
@@ -269,7 +269,7 @@ function App() {
           setEditingPolygonId(marker.id);
           setEditingPointId(null);
         }
-        setPanelPos({ x: 30, y: 30 });
+        setPanelPos({ x: 680, y: 30 });
         setPanelHeight(385);
       }
       lastMarkerClickRef.current = { id: null, time: 0 };
@@ -381,7 +381,7 @@ function App() {
         setEditingPolygonId(id);
         setEditingPointId(null);
       }
-      setPanelPos({ x: 30, y: 30 });
+      setPanelPos({ x: 680, y: 30 });
       setPanelHeight(385);
     }
   };
@@ -398,7 +398,7 @@ function App() {
       setEditingPointId(null);
       setSelectedMarkerId(id);
       setEditorVisible(true);
-      setPanelPos({ x: 30, y: 30 });
+      setPanelPos({ x: 680, y: 30 });
       setPanelHeight(385);
     } else {
       if (draftMarker) {
@@ -423,7 +423,7 @@ function App() {
       setEditingPolygonId(null);
       setSelectedMarkerId(id);
       setEditorVisible(true);
-      setPanelPos({ x: 30, y: 30 });
+      setPanelPos({ x: 680, y: 30 });
       setPanelHeight(385);
     } else {
       if (draftMarker) {
