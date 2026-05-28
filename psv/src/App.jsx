@@ -602,11 +602,24 @@ function App() {
     });
   };
 
-  // Compile active point and polygon visual configurations to viewer
+  // 编译生成供全景图 Viewer 显示的最终 markers 属性列表
   const displayMarkers = useMemo(() => {
     const list = markers.map(m => {
       const isEditingThis = draftMarker && draftMarker.id === m.id;
-      const currentMarker = isEditingThis ? draftMarker : m;
+      const rawMarker = isEditingThis ? draftMarker : m;
+
+      // 属性净化：删除可能冲突的多重内容属性，防止 PSVError 报错
+      const currentMarker = { ...rawMarker };
+      if (currentMarker.type === 'point') {
+        delete currentMarker.polygon;
+        delete currentMarker.polyline;
+        delete currentMarker.circle;
+      } else if (currentMarker.polygon || currentMarker.polyline) {
+        delete currentMarker.type;
+        delete currentMarker.position;
+        delete currentMarker.html;
+        delete currentMarker.icon;
+      }
 
       const isSelected = selectedMarkerId === currentMarker.id;
       const isEditing = (editingPointId === currentMarker.id || editingPolygonId === currentMarker.id);
