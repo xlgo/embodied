@@ -987,57 +987,74 @@ function App() {
           {/* 左侧垂直悬浮功能过滤器工具栏独立组件 */}
           <FilterToolbar activeFilters={activeFilters} onChange={setActiveFilters} />
 
-          {/* 左上角标题、设备选择器与设备树控制台 */}
+          {/* 1. 顶部标题栏 (严格按照效果图 Dock 在最左上角，并带斜切角与渐变底边) */}
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            zIndex: 9982,
+            height: '54px',
+            width: '520px',
+            background: 'linear-gradient(90deg, rgba(29, 32, 45, 0.95) 0%, rgba(29, 32, 45, 0.92) 50%, rgba(29, 32, 45, 0.65) 80%, rgba(29, 32, 45, 0) 100%)',
+            clipPath: 'polygon(0 0, 520px 0, 460px 100%, 0 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            paddingLeft: '24px',
+            boxSizing: 'border-box'
+          }}>
+            {/* Logo 盒子 */}
+            <div style={{
+              width: '28px',
+              height: '28px',
+              backgroundColor: '#22252a',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '9px',
+              color: '#555e70',
+              border: '1px solid rgba(255,255,255,0.06)',
+              fontWeight: 'bold',
+              flexShrink: 0
+            }}>
+              logo
+            </div>
+            {/* 标题文本 */}
+            <span style={{
+              fontSize: '17px',
+              fontWeight: 'bold',
+              color: '#ffffff',
+              letterSpacing: '1.2px',
+              textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              userSelect: 'none'
+            }}>
+              黑龙江铁塔全域感知实景调度平台
+            </span>
+            {/* 底部渐变发光线 */}
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              bottom: 0,
+              right: 0,
+              height: '2px',
+              background: 'linear-gradient(90deg, #00dfb6 0%, rgba(0, 223, 182, 0.5) 75%, transparent 100%)'
+            }} />
+          </div>
+
+          {/* 2. 设备选择器与设备树控制面板 (下移至标题栏下方) */}
           <div style={{
             position: 'absolute',
             left: '20px',
-            top: '20px',
-            zIndex: 9982,
+            top: '72px',
+            zIndex: 9981,
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
             width: '320px',
             pointerEvents: 'none'
           }}>
-            {/* 1. 顶部标题栏 */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              pointerEvents: 'auto',
-              background: 'linear-gradient(90deg, rgba(22, 25, 34, 0.9) 0%, rgba(22, 25, 34, 0.4) 100%)',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              backdropFilter: 'blur(4px)',
-              width: 'max-content'
-            }}>
-              <div style={{
-                width: '28px',
-                height: '28px',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '9px',
-                color: '#a0aec0',
-                border: '1px solid rgba(255,255,255,0.1)',
-                fontWeight: 'bold'
-              }}>
-                logo
-              </div>
-              <span style={{
-                fontSize: '16px',
-                fontWeight: 'bold',
-                color: '#ffffff',
-                letterSpacing: '1px',
-                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
-              }}>
-                黑龙江铁塔全域感知实景调度平台
-              </span>
-            </div>
-
-            {/* 2. 当前选中设备栏 */}
+            {/* 2.1 当前选中设备栏 */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
