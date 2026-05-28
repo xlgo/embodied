@@ -279,22 +279,22 @@ export default function ConfigPanel({
         }
         .tab-btn {
           flex: 1;
-          padding: 8px 0;
+          padding: 6px 0;
           background: none;
           border: none;
           color: #a0aec0;
           cursor: pointer;
           font-size: 12px;
           font-weight: bold;
-          border-bottom: 2px solid transparent;
+          border-radius: 4px;
           transition: all 0.2s;
         }
         .tab-btn:hover {
           color: #ffffff;
         }
         .tab-btn.active {
-          color: #00e5ff;
-          border-bottom-color: #00e5ff;
+          color: #00dfb6; /* 翠绿色/青色文字 */
+          background-color: #12141c; /* 暗色背景 */
         }
         .form-label {
           font-size: 11px;
@@ -570,8 +570,15 @@ export default function ConfigPanel({
           ) : (
             // FULL TABBED LAYOUT (Tabs at the top of configuration area)
             <>
-              {/* Tab options headers */}
-              <div style={{ display: 'flex', borderBottom: '1px solid rgba(46, 53, 79, 0.4)', padding: '0 8px', backgroundColor: 'rgba(0,0,0,0.05)' }}>
+              {/* 页签选项头部：改用圆角胶囊背景样式 */}
+              <div style={{
+                display: 'flex',
+                background: '#1d2030',
+                borderRadius: '6px',
+                padding: '3px',
+                margin: '10px 16px 6px 16px',
+                border: '1px solid #2e354f'
+              }}>
                 <button
                   className={`tab-btn ${activeTab === 'basic' ? 'active' : ''}`}
                   onClick={() => setActiveTab('basic')}
