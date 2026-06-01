@@ -5,6 +5,7 @@ import ContextMenu from './components/ContextMenu';
 import ConfigPanel, { registeredTools } from './components/ConfigPanel';
 import UserStatusWidget from './components/UserStatusWidget';
 import FilterToolbar from './components/FilterToolbar';
+import BottomToolbar from './components/BottomToolbar';
 
 const INITIAL_MARKERS = [
   {
@@ -62,6 +63,19 @@ const INITIAL_MARKERS = [
   }
 ];
 
+function hexToRgba(hex, alpha) {
+  if (!hex) return 'transparent';
+  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+  let c = hex.substring(1);
+  if (c.length === 3) {
+    c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+  }
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function getBezierPoints(points, steps = 100) {
   if (!points || points.length < 2) return points || [];
   const n = points.length - 1;
@@ -87,6 +101,51 @@ function getBezierPoints(points, steps = 100) {
     curvePoints.push([yaw, pitch]);
   }
   return curvePoints;
+}
+
+function getHollowArrowPoints(p1, p2, headSize = 24, shaftWidth = 8, tailWidth = 8) {
+  const y1 = p1[0];
+  const p1_val = p1[1];
+  let y2 = p2[0];
+  const p2_val = p2[1];
+
+  // 计算 yaw 差值，处理 wrap-around 溢出
+  let dy = y2 - y1;
+  while (dy > Math.PI) dy -= 2 * Math.PI;
+  while (dy < -Math.PI) dy += 2 * Math.PI;
+  const dp = p2_val - p1_val;
+
+  const L = Math.sqrt(dy * dy + dp * dp);
+  if (L < 0.0001) {
+    return [p2, p2, p2, p2, p2, p2, p2];
+  }
+
+  // 箭头头部弧度大小 (1px 约等于 0.0012 弧度)
+  const headLength = Math.min(headSize * 0.0012, L * 0.5);
+  const headWidth = headLength * 0.8;
+  const shaftRad = (shaftWidth / 2) * 0.0012;
+  const tailRad = (tailWidth / 2) * 0.0012;
+
+  // 单位方向及法线向量
+  const uy = dy / L;
+  const up = dp / L;
+  const ny = -up;
+  const np = uy;
+
+  const V1 = [y2, p2_val]; // 顶点
+  const V2 = [y2 - headLength * uy + headWidth * ny, p2_val - headLength * up + headWidth * np]; // 左翼尖
+  const V3 = [y2 - headLength * uy + shaftRad * ny, p2_val - headLength * up + shaftRad * np]; // 左内角
+  const V4 = [y1 + tailRad * ny, p1_val + tailRad * np]; // 左尾角
+  const V5 = [y1 - tailRad * ny, p1_val - tailRad * np]; // 右尾角
+  const V6 = [y2 - headLength * uy - shaftRad * ny, p2_val - headLength * up - shaftRad * np]; // 右内角
+  const V7 = [y2 - headLength * uy - headWidth * ny, p2_val - headLength * up - headWidth * np]; // 右翼尖
+
+  return [V1, V2, V3, V4, V5, V6, V7].map(pt => {
+    let y = pt[0];
+    while (y < 0) y += 2 * Math.PI;
+    while (y >= 2 * Math.PI) y -= 2 * Math.PI;
+    return [y, pt[1]];
+  });
 }
 
 function getDistanceToSegment(C, A, B) {
@@ -289,7 +348,7 @@ function App() {
 
     if (selectedTool.type === 'point') {
       const finalId = `point-${Date.now()}`;
-      // Create point using current draft styling attributes
+      // 使用当前草稿样式属性创建点
       const newMarker = {
         ...selectedTool.defaultConfig,
         ...(draftMarker || {}),
@@ -304,23 +363,33 @@ function App() {
       setDraftMarker(JSON.parse(JSON.stringify(newMarker)));
       setEditorVisible(true);
     } else if (selectedTool.type === 'polygon' || selectedTool.type === 'polyline') {
-      setDraftPoints(prev => [...prev, [yaw, pitch]]);
+      setDraftPoints(prev => {
+        const nextPoints = [...prev, [yaw, pitch]];
+        // 箭头只需两点，点击第二点后自动完成绘制
+        if (selectedTool.id === 'arrow' && nextPoints.length === 2) {
+          setTimeout(() => {
+            finishDrawing(nextPoints);
+          }, 0);
+        }
+        return nextPoints;
+      });
     }
   };
 
-  const finishDrawing = () => {
+  const finishDrawing = (overridePoints) => {
     setDraftPoints(currentPoints => {
+      const pointsToUse = overridePoints || currentPoints;
       const cleaned = [];
-      for (let i = 0; i < currentPoints.length; i++) {
+      for (let i = 0; i < pointsToUse.length; i++) {
         if (i > 0) {
-          const prev = currentPoints[i-1];
-          const curr = currentPoints[i];
+          const prev = pointsToUse[i-1];
+          const curr = pointsToUse[i];
           const dist = Math.sqrt(Math.pow(prev[0] - curr[0], 2) + Math.pow(prev[1] - curr[1], 2));
           if (dist < 0.01) {
             continue;
           }
         }
-        cleaned.push(currentPoints[i]);
+        cleaned.push(pointsToUse[i]);
       }
 
       const selectedTool = registeredTools.find(t => t.id === drawingMode);
@@ -343,7 +412,7 @@ function App() {
         setDraftMarker(JSON.parse(JSON.stringify(newShape)));
         setEditorVisible(true);
       } else {
-        alert(isPolygon ? '多边形至少需要3个点！' : '线段至少需要2个点！');
+        alert(isPolygon ? '多边形至少需要3个点！' : '标绘至少需要2个点！');
       }
       return [];
     });
@@ -591,7 +660,7 @@ function App() {
   };
 
   const handleViewerDblClick = (data) => {
-    if (drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier') {
+    if (drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier' || drawingMode === 'arrow') {
       finishDrawing();
     }
   };
@@ -618,7 +687,8 @@ function App() {
 
   // 编译生成供全景图 Viewer 显示的最终 markers 属性列表
   const displayMarkers = useMemo(() => {
-    const list = markers.map(m => {
+    const list = [];
+    markers.forEach(m => {
       const isEditingThis = draftMarker && draftMarker.id === m.id;
       const rawMarker = isEditingThis ? draftMarker : m;
 
@@ -665,7 +735,7 @@ function App() {
             boxStyle = `position: absolute; right: 35px; top: 19px; transform: translateY(-50%);`;
           }
 
-          return {
+          list.push({
             ...currentMarker,
             html: `
               <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="position: relative; width: 0; height: 0; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
@@ -688,43 +758,43 @@ function App() {
               </div>
             `,
             anchor: 'center'
-          };
-        }
+          });
+        } else {
+          const size = currentMarker.iconSize || 24;
+          const color = currentMarker.color || '#ff3b30';
+          const icon = currentMarker.icon || '📍';
+          const showTitle = currentMarker.showTitle !== false;
 
-        const size = currentMarker.iconSize || 24;
-        const color = currentMarker.color || '#ff3b30';
-        const icon = currentMarker.icon || '📍';
-        const showTitle = currentMarker.showTitle !== false;
+          const isSvgIcon = icon.includes('<path') || icon.includes('<circle');
+          const innerIconHtml = isSvgIcon 
+            ? `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor">${icon}</svg>` 
+            : `<span style="font-size: ${size * 0.45}px; line-height: 1;">${icon}</span>`;
 
-        const isSvgIcon = icon.includes('<path') || icon.includes('<circle');
-        const innerIconHtml = isSvgIcon 
-          ? `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor">${icon}</svg>` 
-          : `<span style="font-size: ${size * 0.45}px; line-height: 1;">${icon}</span>`;
-
-        return {
-          ...currentMarker,
-          html: `
-            <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
-              <div class="${isEditing ? 'selected-bounding-box' : ''}" style="position: relative; display: flex; align-items: center; justify-content: center; width: ${size}px; height: ${size * 1.25}px;">
-                <!-- 地图定位针背景 SVG -->
-                <svg viewBox="0 0 24 30" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));">
-                  <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 30 12 30 C12 30 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill="${color}" />
-                </svg>
-                <!-- 内部图标容器 -->
-                <div style="position: absolute; top: ${size * 0.15}px; width: ${size * 0.55}px; height: ${size * 0.55}px; display: flex; align-items: center; justify-content: center; color: white;">
-                  ${innerIconHtml}
+          list.push({
+            ...currentMarker,
+            html: `
+              <div class="draggable-point-marker" data-marker-id="${currentMarker.id}" style="display: flex; flex-direction: column; align-items: center; cursor: ${isEditing ? 'grab' : 'pointer'}; user-select: none;">
+                <div class="${isEditing ? 'selected-bounding-box' : ''}" style="position: relative; display: flex; align-items: center; justify-content: center; width: ${size}px; height: ${size * 1.25}px;">
+                  <!-- 地图定位针背景 SVG -->
+                  <svg viewBox="0 0 24 30" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));">
+                    <path d="M12 0 C5.37 0 0 5.37 0 12 C0 21 12 30 12 30 C12 30 24 21 24 12 C24 5.37 18.63 0 12 0 Z" fill="${color}" />
+                  </svg>
+                  <!-- 内部图标容器 -->
+                  <div style="position: absolute; top: ${size * 0.15}px; width: ${size * 0.55}px; height: ${size * 0.55}px; display: flex; align-items: center; justify-content: center; color: white;">
+                    ${innerIconHtml}
+                  </div>
+                  ${isEditing ? `<div class="resize-corner-handle" data-marker-id="${currentMarker.id}" style="bottom: 0; right: 0;"></div>` : ''}
                 </div>
-                ${isEditing ? `<div class="resize-corner-handle" data-marker-id="${currentMarker.id}" style="bottom: 0; right: 0;"></div>` : ''}
+                ${showTitle ? `
+                  <div class="marker-title" style="background: rgba(0, 0, 0, 0.85); color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
+                    ${currentMarker.title || '未命名'}
+                  </div>
+                ` : ''}
               </div>
-              ${showTitle ? `
-                <div class="marker-title" style="background: rgba(0, 0, 0, 0.85); color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; white-space: nowrap; pointer-events: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.25);">
-                  ${currentMarker.title || '未命名'}
-                </div>
-              ` : ''}
-            </div>
-          `,
-          anchor: 'bottom center'
-        };
+            `,
+            anchor: 'bottom center'
+          });
+        }
       } else if (currentMarker.polygon || currentMarker.polyline) {
         const strokeColor = currentMarker.strokeColor || '#00ffcc';
         const strokeWidth = `${currentMarker.strokeWidth || 2.5}px`;
@@ -732,41 +802,58 @@ function App() {
         const fillOpacity = currentMarker.fillOpacity !== undefined ? currentMarker.fillOpacity : 0.25;
         const fillStyle = currentMarker.fillStyle || 'solid';
 
-        const hexToRgba = (hex, alpha) => {
-          if (!hex) return 'transparent';
-          if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
-          let c = hex.substring(1);
-          if (c.length === 3) {
-            c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
-          }
-          const r = parseInt(c.substring(0, 2), 16);
-          const g = parseInt(c.substring(2, 4), 16);
-          const b = parseInt(c.substring(4, 6), 16);
-          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        };
+
 
         const stroke = hexToRgba(strokeColor, 1);
         const fill = currentMarker.polyline ? 'none' : (fillStyle === 'none' ? 'none' : hexToRgba(fillColor, fillOpacity));
 
         let renderedMarker = { ...currentMarker };
-        if (currentMarker.polyline && currentMarker.id.includes('bezier')) {
-          renderedMarker.polyline = getBezierPoints(currentMarker.polyline);
-        }
-
-        return {
-          ...renderedMarker,
-          svgStyle: {
-            fill: fill,
-            stroke: stroke,
-            strokeWidth: strokeWidth
+        
+        // 判断是否为箭头标注
+        const isArrow = currentMarker.polyline && (currentMarker.id?.includes('arrow') || currentMarker.arrowStyle || currentMarker.arrowHeadSize !== undefined);
+        
+        if (isArrow && currentMarker.polyline.length >= 2) {
+          const p1 = currentMarker.polyline[0];
+          const p2 = currentMarker.polyline[1];
+          const headSize = currentMarker.arrowHeadSize || 24;
+          const shaftWidth = currentMarker.arrowShaftWidth || 8;
+          const tailWidth = currentMarker.arrowTailWidth || 8;
+          
+          const arrowPoints = getHollowArrowPoints(p1, p2, headSize, shaftWidth, tailWidth);
+          const arrowFill = fillColor === 'none' || fillStyle === 'none' ? 'none' : hexToRgba(fillColor, fillOpacity);
+          
+          const finalMarker = { ...renderedMarker };
+          delete finalMarker.polyline;
+          
+          list.push({
+            ...finalMarker,
+            polygon: arrowPoints,
+            svgStyle: {
+              fill: arrowFill,
+              stroke: stroke,
+              strokeWidth: strokeWidth
+            }
+          });
+        } else {
+          if (currentMarker.polyline && currentMarker.id.includes('bezier')) {
+            renderedMarker.polyline = getBezierPoints(currentMarker.polyline);
           }
-        };
+          list.push({
+            ...renderedMarker,
+            svgStyle: {
+              fill: fill,
+              stroke: stroke,
+              strokeWidth: strokeWidth
+            }
+          });
+        }
+      } else {
+        list.push(currentMarker);
       }
-      return currentMarker;
     });
     
-    // Inject drafting markers for polygon/line/bezier creation
-    if ((drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier') && draftPoints.length > 0) {
+    // 注入绘制中（Polygon/Line/Bezier/Arrow）的临时锚点与连线
+    if ((drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier' || drawingMode === 'arrow') && draftPoints.length > 0) {
       draftPoints.forEach((pt, index) => {
         list.push({
           id: `draft-pt-${index}`,
@@ -789,16 +876,42 @@ function App() {
           }
         });
       } else if (draftPoints.length >= 2) {
-        list.push({
-          id: 'draft-polyline',
-          polyline: drawingMode === 'bezier' ? getBezierPoints(draftPoints) : draftPoints,
-          svgStyle: {
-            stroke: '#00e5ff',
-            strokeWidth: '3px',
-            strokeLinejoin: 'round',
-            pointerEvents: 'none'
-          }
-        });
+        if (drawingMode === 'arrow') {
+          const p1 = draftPoints[0];
+          const p2 = draftPoints[1];
+          const headSize = draftMarker?.arrowHeadSize || 24;
+          const shaftWidth = draftMarker?.arrowShaftWidth || 8;
+          const tailWidth = draftMarker?.arrowTailWidth || 8;
+          const strokeColor = draftMarker?.strokeColor || '#00e5ff';
+          const strokeWidth = `${draftMarker?.strokeWidth || 2}px`;
+          const fillColor = draftMarker?.fillColor || '#00e5ff';
+          const fillOpacity = draftMarker?.fillOpacity !== undefined ? draftMarker.fillOpacity : 0.3;
+          
+          const arrowPoints = getHollowArrowPoints(p1, p2, headSize, shaftWidth, tailWidth);
+          
+          list.push({
+            id: 'draft-polygon',
+            polygon: arrowPoints,
+            svgStyle: {
+              fill: hexToRgba(fillColor, fillOpacity),
+              stroke: strokeColor,
+              strokeWidth: strokeWidth,
+              strokeLinejoin: 'round',
+              pointerEvents: 'none'
+            }
+          });
+        } else {
+          list.push({
+            id: 'draft-polyline',
+            polyline: drawingMode === 'bezier' ? getBezierPoints(draftPoints) : draftPoints,
+            svgStyle: {
+              stroke: '#00e5ff',
+              strokeWidth: '3px',
+              strokeLinejoin: 'round',
+              pointerEvents: 'none'
+            }
+          });
+        }
       }
     }
 
@@ -1333,6 +1446,9 @@ function App() {
               onCancel={handleCancelEdit}
             />
           )}
+
+          {/* Bottom Floating Navigation Toolbar */}
+          <BottomToolbar />
         </div>
 
         {/* Right sidebar */}

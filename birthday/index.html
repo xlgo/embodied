@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生日快乐，我的至爱 ❤️</title>
+    <!-- 引入高雅和现代字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 背景 Canvas：星空与漂浮爱心 -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- 顶栏：轻量音乐播放/静音按钮 -->
+    <header class="header">
+        <div class="logo">To My Love</div>
+        <button id="musicToggle" class="music-btn" aria-label="播放音乐">
+            <span class="music-icon">🎵</span>
+            <span class="music-text">播放音乐</span>
+        </button>
+    </header>
+
+    <main class="main-container">
+        <!-- 头部主标题区 -->
+        <section class="hero-section">
+            <h1 class="hero-title">Happy Birthday</h1>
+            <p class="hero-subtitle">祝我最亲爱的媳妇生日快乐</p>
+            <div class="age-badge">1988 — 2026 • 38 Years of Beauty</div>
+        </section>
+
+        <!-- 爱意计时器卡片 -->
+        <section class="timer-section">
+            <div class="glass-card timer-card">
+                <h2 class="card-title">✨ 你已美丽绽放了 ✨</h2>
+                <div class="timer-display" id="birthTimer">
+                    <!-- JS 动态计算 -->
+                    <div class="timer-item"><span class="number" id="years">38</span><span class="unit">年</span></div>
+                    <div class="timer-item"><span class="number" id="days">--</span><span class="unit">天</span></div>
+                    <div class="timer-item"><span class="number" id="hours">--</span><span class="unit">时</span></div>
+                    <div class="timer-item"><span class="number" id="minutes">--</span><span class="unit">分</span></div>
+                    <div class="timer-item"><span class="number" id="seconds">--</span><span class="unit">秒</span></div>
+                </div>
+                <p class="timer-caption">每一分，每一秒，因你而在，为你闪耀</p>
+            </div>
+        </section>
+
+        <!-- 3D 互动信封/贺卡 -->
+        <section class="envelope-section">
+            <div class="envelope-wrapper" id="envelopeWrapper">
+                <div class="envelope">
+                    <div class="flap"></div>
+                    <div class="pocket"></div>
+                    <div class="letter">
+                        <div class="letter-text">
+                            <h3>致最亲爱的你：</h3>
+                            <p>今天是你的生日，想把全世界最温柔的祝福都送给你。</p>
+                            <p>从1988年你来到这个世界，到今天我们携手相伴，岁月的画笔将你雕琢得更加优雅迷人。</p>
+                            <p>感谢你带给这个家所有的温暖与美好，愿你在未来的每一天里，眼里有光，心中有爱，被这世界温柔相待。</p>
+                            <p class="signature">永远爱你的老公 ❤️</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="envelope-tip">点击信封，开启我的心意 💌</div>
+            </div>
+        </section>
+
+        <!-- 互动心愿互动区 -->
+        <section class="wish-section">
+            <div class="glass-card wish-card">
+                <h2 class="card-title">🌸 收集今天的生日心愿 🌸</h2>
+                <p class="wish-desc">点击下方按钮，为自己许下一个心愿，或者收获一句专属情话吧！</p>
+                <button class="action-btn" id="wishBtn">许下心愿 / 抽取情话</button>
+                <div class="wish-display" id="wishDisplay">“遇见你，是我这辈子最幸运的事。”</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 底部版权/声明 -->
+    <footer class="footer">
+        <p>Made with ❤️ for My Wife | 2026.06.01</p>
+    </footer>
+
+    <!-- 音频资源：静音加载背景轻音乐 -->
+    <audio id="bgMusic" loop src="https://assets.codepen.co/4358584/An+Hour+Of+Piano+Music+-+Relaxing+Piano+Music+-+Beautiful+Piano+Music.mp3"></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>

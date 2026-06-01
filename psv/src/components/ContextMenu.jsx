@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export default function ContextMenu({ x, y, visible, onClose, onAddTag }) {
   const menuRef = useRef(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -17,15 +18,30 @@ export default function ContextMenu({ x, y, visible, onClose, onAddTag }) {
     };
   }, [visible, onClose]);
 
+  // Adjust position to keep menu within viewport using fixed positioning
+  useEffect(() => {
+    if (!visible || !menuRef.current) return;
+    const menu = menuRef.current;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const menuW = menu.offsetWidth;
+    const menuH = menu.offsetHeight;
+    let ax = x;
+    let ay = y;
+    if (x + menuW > vw) ax = Math.max(0, x - menuW);
+    if (y + menuH > vh) ay = Math.max(0, y - menuH);
+    setPos({ x: ax, y: ay });
+  }, [visible, x, y]);
+
   if (!visible) return null;
 
   return (
     <div
       ref={menuRef}
       style={{
-        position: 'absolute',
-        left: `${x}px`,
-        top: `${y}px`,
+        position: 'fixed',
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
         zIndex: 9999,
         backgroundColor: 'rgba(24, 27, 39, 0.95)',
         backdropFilter: 'blur(10px)',

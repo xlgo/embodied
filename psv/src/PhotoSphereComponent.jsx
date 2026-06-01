@@ -31,6 +31,51 @@ function getBezierPoints(points, steps = 100) {
   return curvePoints;
 }
 
+function getHollowArrowPoints(p1, p2, headSize = 24, shaftWidth = 8, tailWidth = 8) {
+  const y1 = p1[0];
+  const p1_val = p1[1];
+  let y2 = p2[0];
+  const p2_val = p2[1];
+
+  // 计算 yaw 差值，处理 wrap-around 溢出
+  let dy = y2 - y1;
+  while (dy > Math.PI) dy -= 2 * Math.PI;
+  while (dy < -Math.PI) dy += 2 * Math.PI;
+  const dp = p2_val - p1_val;
+
+  const L = Math.sqrt(dy * dy + dp * dp);
+  if (L < 0.0001) {
+    return [p2, p2, p2, p2, p2, p2, p2];
+  }
+
+  // 箭头头部弧度大小 (1px 约等于 0.0012 弧度)
+  const headLength = Math.min(headSize * 0.0012, L * 0.5);
+  const headWidth = headLength * 0.8;
+  const shaftRad = (shaftWidth / 2) * 0.0012;
+  const tailRad = (tailWidth / 2) * 0.0012;
+
+  // 单位方向及法线向量
+  const uy = dy / L;
+  const up = dp / L;
+  const ny = -up;
+  const np = uy;
+
+  const V1 = [y2, p2_val]; // 顶点
+  const V2 = [y2 - headLength * uy + headWidth * ny, p2_val - headLength * up + headWidth * np]; // 左翼尖
+  const V3 = [y2 - headLength * uy + shaftRad * ny, p2_val - headLength * up + shaftRad * np]; // 左内角
+  const V4 = [y1 + tailRad * ny, p1_val + tailRad * np]; // 左尾角
+  const V5 = [y1 - tailRad * ny, p1_val - tailRad * np]; // 右尾角
+  const V6 = [y2 - headLength * uy - shaftRad * ny, p2_val - headLength * up - shaftRad * np]; // 右内角
+  const V7 = [y2 - headLength * uy - headWidth * ny, p2_val - headLength * up - headWidth * np]; // 右翼尖
+
+  return [V1, V2, V3, V4, V5, V6, V7].map(pt => {
+    let y = pt[0];
+    while (y < 0) y += 2 * Math.PI;
+    while (y >= 2 * Math.PI) y -= 2 * Math.PI;
+    return [y, pt[1]];
+  });
+}
+
 const PhotoSphereComponent = forwardRef(({
   panorama,
   markers = [],
@@ -336,12 +381,48 @@ const PhotoSphereComponent = forwardRef(({
                 newPoints[index] = [yaw, pitch];
                 
                 const isBezier = currentEditingId.includes('bezier');
-                const updatePoints = isBezier ? getBezierPoints(newPoints) : newPoints;
+                const isArrow = currentEditingId.includes('arrow');
 
-                markersPluginRef.current.updateMarker({
-                  id: currentEditingId,
-                  [shapeKey]: updatePoints
-                }, false);
+                 if (isArrow && newPoints.length >= 2) {
+                  const headSize = activePolygon.arrowHeadSize || 24;
+                  const shaftWidth = activePolygon.arrowShaftWidth || 8;
+                  const tailWidth = activePolygon.arrowTailWidth || 8;
+                  const strokeColor = activePolygon.strokeColor || '#00e5ff';
+                  const strokeWidth = `${activePolygon.strokeWidth || 2}px`;
+                  const fillColor = activePolygon.fillColor || '#00e5ff';
+                  const fillOpacity = activePolygon.fillOpacity !== undefined ? activePolygon.fillOpacity : 0.3;
+
+                  const arrowPoints = getHollowArrowPoints(newPoints[0], newPoints[1], headSize, shaftWidth, tailWidth);
+                  
+                  const hexToRgbaLocal = (hex, alpha) => {
+                    if (!hex) return 'transparent';
+                    if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+                    let c = hex.substring(1);
+                    if (c.length === 3) {
+                      c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+                    }
+                    const r = parseInt(c.substring(0, 2), 16);
+                    const g = parseInt(c.substring(2, 4), 16);
+                    const b = parseInt(c.substring(4, 6), 16);
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                  };
+
+                  markersPluginRef.current.updateMarker({
+                    id: currentEditingId,
+                    polygon: arrowPoints,
+                    svgStyle: {
+                      fill: activePolygon.fillStyle === 'none' ? 'none' : hexToRgbaLocal(fillColor, fillOpacity),
+                      stroke: hexToRgbaLocal(strokeColor, 1),
+                      strokeWidth: strokeWidth
+                    }
+                  }, false);
+                } else {
+                  const updatePoints = isBezier ? getBezierPoints(newPoints) : newPoints;
+                  markersPluginRef.current.updateMarker({
+                    id: currentEditingId,
+                    [shapeKey]: updatePoints
+                  }, false);
+                }
               }
             }
 
@@ -402,11 +483,8 @@ const PhotoSphereComponent = forwardRef(({
 
     const handleContextMenu = (e) => {
       e.preventDefault();
-      const rect = container.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
       if (onContextMenuRef.current) {
-        onContextMenuRef.current({ x: clickX, y: clickY });
+        onContextMenuRef.current({ x: e.clientX, y: e.clientY });
       }
     };
 
