@@ -25,7 +25,8 @@ export default function MarkerList({
   onSelectMarker,
   onToggleEdit,
   onToggleEditPoint,
-  onDeleteMarker
+  onDeleteMarker,
+  style
 }) {
   return (
     <div style={{
@@ -34,12 +35,23 @@ export default function MarkerList({
       paddingLeft: '24px',
       display: 'flex',
       flexDirection: 'column',
-      userSelect: 'none'
+      userSelect: 'none',
+      ...style
     }}>
       <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
         📝 标中标注列表
       </h3>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', maxHeight: '580px' }}>
+      <ul style={{ 
+        listStyle: 'none', 
+        padding: 0, 
+        margin: 0, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '12px', 
+        overflowY: 'auto', 
+        maxHeight: style ? 'none' : '580px', 
+        flex: style ? 1 : 'none' 
+      }}>
         {markers.map(m => {
           const isSelected = selectedMarkerId === m.id;
           const isEditingPolygon = editingPolygonId === m.id;

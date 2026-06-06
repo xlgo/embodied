@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-export default function ContextMenu({ x, y, visible, onClose, onAddTag }) {
+export default function ContextMenu({ x, y, visible, onClose, onAddTag, markerListVisible, onToggleMarkerList }) {
   const menuRef = useRef(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
@@ -86,6 +86,15 @@ export default function ContextMenu({ x, y, visible, onClose, onAddTag }) {
         }}
       >
         添加标签
+      </div>
+      <div 
+        className="context-menu-item highlight" 
+        onClick={() => {
+          onToggleMarkerList();
+          onClose();
+        }}
+      >
+        {markerListVisible ? '隐藏标注' : '显示标注'}
       </div>
       <div className="context-menu-item" onClick={onClose}>收藏该通道</div>
       <div className="context-menu-item" onClick={onClose}>通道历史</div>

@@ -274,6 +274,16 @@ function App() {
   const [panelPos, setPanelPos] = useState({ x: 680, y: 30 });
   const [panelHeight, setPanelHeight] = useState(385);
 
+  // Floating Marker List visibility state (defaults to false for maximized view)
+  const [markerListVisible, setMarkerListVisible] = useState(false);
+
+  // Automatically show the floating marker list when editing is active
+  useEffect(() => {
+    if (editorVisible || drawingMode !== 'none' || editingPolygonId || editingPointId) {
+      setMarkerListVisible(true);
+    }
+  }, [editorVisible, drawingMode, editingPolygonId, editingPointId]);
+
   const panoramaUrl = '/sphere.jpg';
   const lastMarkerClickRef = useRef({ id: null, time: 0 });
 
@@ -457,10 +467,6 @@ function App() {
 
   const handleToggleEdit = (id) => {
     if (editingPolygonId !== id) {
-      if (draftMarker) {
-        const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并切换吗？");
-        if (!confirmDiscard) return;
-      }
       const target = markers.find(m => m.id === id);
       setDraftMarker(JSON.parse(JSON.stringify(target)));
       setEditingPolygonId(id);
@@ -470,22 +476,15 @@ function App() {
       setPanelPos({ x: 680, y: 30 });
       setPanelHeight(385);
     } else {
-      if (draftMarker) {
-        const confirmDiscard = window.confirm("当前有未保存的修改，确定要关闭编辑并放弃修改吗？");
-        if (!confirmDiscard) return;
-      }
       setEditingPolygonId(null);
       setDraftMarker(null);
       setSelectedMarkerId(null);
+      setEditorVisible(false);
     }
   };
 
   const handleToggleEditPoint = (id) => {
     if (editingPointId !== id) {
-      if (draftMarker) {
-        const confirmDiscard = window.confirm("当前有未保存的修改，确定要放弃修改并切换吗？");
-        if (!confirmDiscard) return;
-      }
       const target = markers.find(m => m.id === id);
       setDraftMarker(JSON.parse(JSON.stringify(target)));
       setEditingPointId(id);
@@ -495,13 +494,10 @@ function App() {
       setPanelPos({ x: 680, y: 30 });
       setPanelHeight(385);
     } else {
-      if (draftMarker) {
-        const confirmDiscard = window.confirm("当前有未保存的修改，确定要关闭编辑并放弃修改吗？");
-        if (!confirmDiscard) return;
-      }
       setEditingPointId(null);
       setDraftMarker(null);
       setSelectedMarkerId(null);
+      setEditorVisible(false);
     }
   };
 
@@ -537,15 +533,11 @@ function App() {
     setEditingPolygonId(null);
     setDraftMarker(null);
     setSelectedMarkerId(null);
+    setEditorVisible(false);
   };
 
   const handleCancelEdit = () => {
-    if (draftMarker) {
-      const confirmDiscard = window.confirm("确定要取消并放弃此次修改吗？");
-      if (!confirmDiscard) return;
-    } else {
-      setEditorVisible(false);
-    }
+    setEditorVisible(false);
     setEditingPointId(null);
     setEditingPolygonId(null);
     setDraftMarker(null);
@@ -579,7 +571,10 @@ function App() {
   const handleDeleteMarker = (id) => {
     if (editingPolygonId === id) setEditingPolygonId(null);
     if (editingPointId === id) setEditingPointId(null);
-    if (selectedMarkerId === id) setSelectedMarkerId(null);
+    if (selectedMarkerId === id) {
+      setSelectedMarkerId(null);
+      setEditorVisible(false);
+    }
     if (draftMarker && draftMarker.id === id) setDraftMarker(null);
     setMarkers(prev => prev.filter(marker => marker.id !== id));
   };
@@ -1068,13 +1063,13 @@ function App() {
 
   return (
     <div style={{
-      padding: '24px',
+      padding: '12px',
       fontFamily: 'system-ui, sans-serif',
-      maxWidth: '1440px',
-      margin: '0 auto',
+      maxWidth: '100%',
+      margin: '0',
       display: 'flex',
       flexDirection: 'column',
-      gap: '20px',
+      gap: '12px',
       backgroundColor: '#0d0f14',
       minHeight: '100vh',
       color: '#f7fafc'
@@ -1083,7 +1078,7 @@ function App() {
 
 
       {/* Main Workspace */}
-      <div style={{ display: 'flex', gap: '24px', flex: 1 }}>
+      <div style={{ display: 'flex', gap: '12px', flex: 1 }}>
         
         {/* Left canvas wrapper */}
         <div style={{
@@ -1094,7 +1089,7 @@ function App() {
           overflow: 'hidden',
           backgroundColor: '#161922',
           boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-          height: '650px'
+          height: 'calc(100vh - 48px)'
         }}>
           
           {/* 左侧垂直悬浮功能过滤器工具栏独立组件 */}
@@ -1428,6 +1423,8 @@ function App() {
             visible={contextMenu.visible}
             onClose={() => setContextMenu({ visible: false, x: 0, y: 0 })}
             onAddTag={handleStartEditToolbar}
+            markerListVisible={markerListVisible}
+            onToggleMarkerList={() => setMarkerListVisible(prev => !prev)}
           />
 
           {/* Integrated ConfigPanel (includes toolbar, tabs and forms) */}
@@ -1449,20 +1446,39 @@ function App() {
 
           {/* Bottom Floating Navigation Toolbar */}
           <BottomToolbar />
-        </div>
 
-        {/* Right sidebar */}
-        <MarkerList
-          markers={markers}
-          selectedMarkerId={selectedMarkerId}
-          editingPolygonId={editingPolygonId}
-          editingPointId={editingPointId}
-          onGotoMarker={gotoMarker}
-          onSelectMarker={handleSelectMarker}
-          onToggleEdit={handleToggleEdit}
-          onToggleEditPoint={handleToggleEditPoint}
-          onDeleteMarker={handleDeleteMarker}
-        />
+          {/* Floating Marker List (visible when markerListVisible is true) */}
+          {markerListVisible && (
+            <MarkerList
+              markers={markers}
+              selectedMarkerId={selectedMarkerId}
+              editingPolygonId={editingPolygonId}
+              editingPointId={editingPointId}
+              onGotoMarker={gotoMarker}
+              onSelectMarker={handleSelectMarker}
+              onToggleEdit={handleToggleEdit}
+              onToggleEditPoint={handleToggleEditPoint}
+              onDeleteMarker={handleDeleteMarker}
+              style={{
+                position: 'absolute',
+                left: treeVisible ? '360px' : '20px',
+                top: '72px',
+                zIndex: 9980,
+                width: '300px',
+                maxHeight: 'calc(100% - 140px)',
+                backgroundColor: 'rgba(22, 25, 34, 0.92)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(46, 53, 79, 0.8)',
+                borderRadius: '12px',
+                padding: '16px',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                borderLeft: '1px solid rgba(46, 53, 79, 0.8)',
+                paddingLeft: '16px',
+                transition: 'left 0.3s ease, opacity 0.3s ease'
+              }}
+            />
+          )}
+        </div>
       </div>
 
     </div>
