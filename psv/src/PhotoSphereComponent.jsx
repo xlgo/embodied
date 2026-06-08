@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Viewer } from '@photo-sphere-viewer/core';
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+import { findToolForMarker } from './components/tools/registry';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 
@@ -74,6 +75,57 @@ function getHollowArrowPoints(p1, p2, headSize = 24, shaftWidth = 8, tailWidth =
     while (y >= 2 * Math.PI) y -= 2 * Math.PI;
     return [y, pt[1]];
   });
+}
+
+function getSegmentMidpoint(pt, nextPt) {
+  const toVector = ([yaw, pitch]) => {
+    const cp = Math.cos(pitch);
+    return {
+      x: cp * Math.sin(yaw),
+      y: Math.sin(pitch),
+      z: cp * Math.cos(yaw)
+    };
+  };
+  const a = toVector(pt);
+  const b = toVector(nextPt);
+  const x = a.x + b.x;
+  const y = a.y + b.y;
+  const z = a.z + b.z;
+  const length = Math.sqrt(x * x + y * y + z * z);
+
+  if (length > 0.000001) {
+    let yaw = Math.atan2(x / length, z / length);
+    if (yaw < 0) yaw += 2 * Math.PI;
+
+    return {
+      yaw,
+      pitch: Math.asin(y / length)
+    };
+  }
+
+  let yaw1 = pt[0];
+  let yaw2 = nextPt[0];
+  const pitch1 = pt[1];
+  const pitch2 = nextPt[1];
+
+  let diff = yaw2 - yaw1;
+  while (diff > Math.PI) {
+    yaw2 -= 2 * Math.PI;
+    diff = yaw2 - yaw1;
+  }
+  while (diff < -Math.PI) {
+    yaw2 += 2 * Math.PI;
+    diff = yaw2 - yaw1;
+  }
+
+  let yaw = yaw1 + diff / 2;
+  while (yaw < 0) yaw += 2 * Math.PI;
+  while (yaw >= 2 * Math.PI) yaw -= 2 * Math.PI;
+
+  return {
+    yaw,
+    pitch: (pitch1 + pitch2) / 2
+  };
 }
 
 const PhotoSphereComponent = forwardRef(({
@@ -225,30 +277,11 @@ const PhotoSphereComponent = forwardRef(({
             const pt = points[index];
             const nextPt = isPolygonType ? points[(index + 1) % n] : points[index + 1];
 
-            let yaw1 = pt[0];
-            let yaw2 = nextPt[0];
-            let pitch1 = pt[1];
-            let pitch2 = nextPt[1];
-
-            let diff = yaw2 - yaw1;
-            while (diff > Math.PI) {
-              yaw2 -= 2 * Math.PI;
-              diff = yaw2 - yaw1;
-            }
-            while (diff < -Math.PI) {
-              yaw2 += 2 * Math.PI;
-              diff = yaw2 - yaw1;
-            }
-
-            let midYaw = yaw1 + diff / 2;
-            let midPitch = (pitch1 + pitch2) / 2;
-
-            while (midYaw < 0) midYaw += 2 * Math.PI;
-            while (midYaw >= 2 * Math.PI) midYaw -= 2 * Math.PI;
+            const midpoint = getSegmentMidpoint(pt, nextPt);
 
             // Insert new point coordinates
             const newPoints = [...points];
-            newPoints.splice(index + 1, 0, [midYaw, midPitch]);
+            newPoints.splice(index + 1, 0, [midpoint.yaw, midpoint.pitch]);
 
             // Mutate markersRef internally to prevent lagging in pointermove
             activePolygon[shapeKey] = newPoints;
@@ -268,7 +301,7 @@ const PhotoSphereComponent = forwardRef(({
             try {
               markersPluginRef.current.addMarker({
                 id: `edit-handle-${index + 1}`,
-                position: { yaw: midYaw, pitch: midPitch },
+                position: { yaw: midpoint.yaw, pitch: midpoint.pitch },
                 html: `
                   <div class="edit-handle-wrapper" style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
                     <div class="edit-handle-marker" data-handle-index="${index + 1}" style="background: #ff3b30; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; cursor: move; box-shadow: 0 0 5px black; pointer-events: auto;"></div>
@@ -283,7 +316,7 @@ const PhotoSphereComponent = forwardRef(({
 
             // Trigger react state update
             if (onEditPointAddRef.current) {
-              onEditPointAddRef.current(index + 1, midYaw, midPitch);
+              onEditPointAddRef.current(index + 1, midpoint.yaw, midpoint.pitch);
             }
 
             // Immediately set index + 1 as active dragging index
@@ -375,8 +408,27 @@ const PhotoSphereComponent = forwardRef(({
             const currentEditingId = editingPolygonIdRef.current;
             if (currentEditingId) {
               const activePolygon = markersRef.current.find(m => m.id === currentEditingId);
+              const activeTool = activePolygon ? findToolForMarker(activePolygon) : null;
+              if (activeTool?.handleViewerEditDrag) {
+                const result = activeTool.handleViewerEditDrag({
+                  marker: activePolygon,
+                  index,
+                  yaw,
+                  pitch,
+                  viewerPoint: { x, y },
+                  viewer: viewerRef.current,
+                  markersPlugin: markersPluginRef.current
+                });
+                markersPluginRef.current.renderMarkers();
+
+                if (onEditPointDragRef.current) {
+                  onEditPointDragRef.current(index, yaw, pitch, result?.meta || {});
+                }
+                if (result?.handled) return;
+              }
               const shapeKey = activePolygon?.polygon ? 'polygon' : activePolygon?.polyline ? 'polyline' : null;
               if (activePolygon && shapeKey) {
+                const isPolygon = shapeKey === 'polygon';
                 const newPoints = [...activePolygon[shapeKey]];
                 newPoints[index] = [yaw, pitch];
                 
@@ -422,6 +474,28 @@ const PhotoSphereComponent = forwardRef(({
                     id: currentEditingId,
                     [shapeKey]: updatePoints
                   }, false);
+                }
+
+                if (!isBezier) {
+                  const updateVirtualHandle = (handleIndex) => {
+                    const nextIndex = isPolygon ? (handleIndex + 1) % newPoints.length : handleIndex + 1;
+                    if (handleIndex < 0 || handleIndex >= newPoints.length || nextIndex >= newPoints.length) return;
+
+                    const midpoint = getSegmentMidpoint(newPoints[handleIndex], newPoints[nextIndex]);
+                    try {
+                      markersPluginRef.current.updateMarker({
+                        id: `virtual-handle-${handleIndex}`,
+                        position: midpoint
+                      }, false);
+                    } catch (err) { }
+                  };
+
+                  updateVirtualHandle(index);
+                  if (isPolygon) {
+                    updateVirtualHandle((index - 1 + newPoints.length) % newPoints.length);
+                  } else {
+                    updateVirtualHandle(index - 1);
+                  }
                 }
               }
             }

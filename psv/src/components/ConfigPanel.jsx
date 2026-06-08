@@ -1,10 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-// 动态扫描 tools/ 目录下的所有标绘工具组件 (*Tool.jsx)
-const toolModules = import.meta.glob('./tools/*Tool.jsx', { eager: true });
-export const registeredTools = Object.keys(toolModules)
-  .map((key) => toolModules[key].default)
-  .filter((t) => t && t.id);
+import { registeredTools, findToolForMarker } from './tools/registry';
+export { registeredTools } from './tools/registry';
 
 // Numeric input with plus/minus buttons
 function StepInput({ value, onChange, min = 1, max = 2000, step = 1 }) {
@@ -103,6 +99,7 @@ function ColorInput({ label, value, onChange }) {
         >
           {/* 彩色矩形选择条触发器 */}
           <div
+            className="color-input-trigger"
             style={{
               width: '180px',
               height: '28px',
@@ -140,15 +137,26 @@ export default function ConfigPanel({
   const [showIconList, setShowIconList] = useState(false);
 
   const startDrag = (e) => {
+    if (e.button !== 0 || !panelRef.current?.contains(e.target)) {
+      return;
+    }
+
     // Only allow dragging on the top toolbar background or drag bar, not buttons
     if (
       e.target.closest('button') ||
       e.target.closest('input') ||
       e.target.closest('select') ||
+      e.target.closest('textarea') ||
       e.target.closest('.resize-handle') ||
       e.target.closest('.image-item-del') ||
       e.target.closest('.icon-preview-btn') ||
-      e.target.closest('.tab-btn')
+      e.target.closest('.tab-btn') ||
+      e.target.closest('.color-input-trigger') ||
+      e.target.closest('.ant-color-picker') ||
+      e.target.closest('.ant-color-picker-trigger') ||
+      e.target.closest('.ant-popover') ||
+      e.target.closest('.ant-slider') ||
+      e.target.closest('[role="slider"]')
     ) {
       return;
     }
@@ -219,7 +227,7 @@ export default function ConfigPanel({
     });
   };
 
-  const activeTool = draftMarker ? registeredTools.find(t => t.match && t.match(draftMarker)) : null;
+  const activeTool = draftMarker ? findToolForMarker(draftMarker) : null;
   const isPoint = activeTool ? activeTool.type === 'point' : (draftMarker?.type === 'point');
   const showConfigDetails = draftMarker !== null;
   const isMinimized = panelHeight < 240;

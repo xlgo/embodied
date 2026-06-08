@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import PhotoSphereComponent from './PhotoSphereComponent';
 import MarkerList from './components/MarkerList';
 import ContextMenu from './components/ContextMenu';
-import ConfigPanel, { registeredTools } from './components/ConfigPanel';
+import ConfigPanel from './components/ConfigPanel';
+import { findToolById, findToolForMarker } from './components/tools/registry';
 import UserStatusWidget from './components/UserStatusWidget';
 import FilterToolbar from './components/FilterToolbar';
 import BottomToolbar from './components/BottomToolbar';
@@ -181,6 +182,57 @@ function getDistanceToSegment(C, A, B) {
   return Math.sqrt((cx - projX) ** 2 + (cp - projP) ** 2);
 }
 
+function getSegmentMidpoint(pt, nextPt) {
+  const toVector = ([yaw, pitch]) => {
+    const cp = Math.cos(pitch);
+    return {
+      x: cp * Math.sin(yaw),
+      y: Math.sin(pitch),
+      z: cp * Math.cos(yaw)
+    };
+  };
+  const a = toVector(pt);
+  const b = toVector(nextPt);
+  const x = a.x + b.x;
+  const y = a.y + b.y;
+  const z = a.z + b.z;
+  const length = Math.sqrt(x * x + y * y + z * z);
+
+  if (length > 0.000001) {
+    let yaw = Math.atan2(x / length, z / length);
+    if (yaw < 0) yaw += 2 * Math.PI;
+
+    return {
+      yaw,
+      pitch: Math.asin(y / length)
+    };
+  }
+
+  let yaw1 = pt[0];
+  let yaw2 = nextPt[0];
+  const pitch1 = pt[1];
+  const pitch2 = nextPt[1];
+
+  let diff = yaw2 - yaw1;
+  while (diff > Math.PI) {
+    yaw2 -= 2 * Math.PI;
+    diff = yaw2 - yaw1;
+  }
+  while (diff < -Math.PI) {
+    yaw2 += 2 * Math.PI;
+    diff = yaw2 - yaw1;
+  }
+
+  let yaw = yaw1 + diff / 2;
+  while (yaw < 0) yaw += 2 * Math.PI;
+  while (yaw >= 2 * Math.PI) yaw -= 2 * Math.PI;
+
+  return {
+    yaw,
+    pitch: (pitch1 + pitch2) / 2
+  };
+}
+
 const DEFAULT_POINT_CONFIG = {
   type: 'point',
   title: '新建标签',
@@ -353,7 +405,7 @@ function App() {
     
     const { pitch, yaw } = data;
     
-    const selectedTool = registeredTools.find(t => t.id === drawingMode);
+    const selectedTool = findToolById(drawingMode);
     if (!selectedTool) return;
 
     if (selectedTool.type === 'point') {
@@ -372,11 +424,11 @@ function App() {
       setEditingPointId(finalId);
       setDraftMarker(JSON.parse(JSON.stringify(newMarker)));
       setEditorVisible(true);
-    } else if (selectedTool.type === 'polygon' || selectedTool.type === 'polyline') {
+    } else if (selectedTool.type === 'polygon' || selectedTool.type === 'polyline' || selectedTool.createMarker) {
       setDraftPoints(prev => {
-        const nextPoints = [...prev, [yaw, pitch]];
+        const nextPoints = [...prev, selectedTool.getDraftPoint ? selectedTool.getDraftPoint(data) : [yaw, pitch]];
         // 箭头只需两点，点击第二点后自动完成绘制
-        if (selectedTool.id === 'arrow' && nextPoints.length === 2) {
+        if ((selectedTool.shouldAutoFinish && selectedTool.shouldAutoFinish(nextPoints)) || (selectedTool.id === 'arrow' && nextPoints.length === 2)) {
           setTimeout(() => {
             finishDrawing(nextPoints);
           }, 0);
@@ -402,8 +454,28 @@ function App() {
         cleaned.push(pointsToUse[i]);
       }
 
-      const selectedTool = registeredTools.find(t => t.id === drawingMode);
+      const selectedTool = findToolById(drawingMode);
       if (!selectedTool) return [];
+
+      if (selectedTool.createMarker) {
+        const finalId = `${selectedTool.id}-${Date.now()}`;
+        const newShape = selectedTool.createMarker({
+          id: finalId,
+          points: cleaned,
+          draftMarker,
+          defaultConfig: selectedTool.defaultConfig
+        });
+        if (newShape) {
+          setMarkers(prev => [...prev, newShape]);
+          setSelectedMarkerId(finalId);
+          setEditingPolygonId(finalId);
+          setDraftMarker(JSON.parse(JSON.stringify(newShape)));
+          setEditorVisible(true);
+        } else {
+          alert(selectedTool.minPointsMessage || '标绘点位不足');
+        }
+        return [];
+      }
 
       const isPolygon = selectedTool.type === 'polygon';
       const minPoints = isPolygon ? 3 : 2;
@@ -588,10 +660,12 @@ function App() {
       }
     } else if (action === 'reset') {
       if (draftMarker) {
-        const selectedTool = registeredTools.find(t => t.match && t.match(draftMarker));
+        const selectedTool = findToolForMarker(draftMarker);
         if (selectedTool) {
           if (selectedTool.type === 'point') {
             setDraftMarker({ ...selectedTool.defaultConfig, id: draftMarker.id, position: draftMarker.position });
+          } else if (selectedTool.resetDraft) {
+            setDraftMarker(selectedTool.resetDraft(draftMarker));
           } else {
             const shapeKey = draftMarker.polygon ? 'polygon' : 'polyline';
             setDraftMarker({ ...selectedTool.defaultConfig, id: draftMarker.id, [shapeKey]: draftMarker[shapeKey] });
@@ -602,7 +676,7 @@ function App() {
   };
 
   const handleSelectTool = (toolId) => {
-    const selectedTool = registeredTools.find(t => t.id === toolId);
+    const selectedTool = findToolById(toolId);
     if (selectedTool) {
       setDrawingMode(toolId);
       const isPointType = selectedTool.type === 'point';
@@ -617,7 +691,7 @@ function App() {
         setEditingPointId('new-point');
         setEditingPolygonId(null);
       } else {
-        setEditingPolygonId('new-polygon');
+        setEditingPolygonId(`new-${selectedTool.type}`);
         setEditingPointId(null);
         setDraftPoints([]);
       }
@@ -630,8 +704,12 @@ function App() {
     }
   };
 
-  const handleEditPointDrag = (pointIndex, yaw, pitch) => {
+  const handleEditPointDrag = (pointIndex, yaw, pitch, meta = {}) => {
     setDraftMarker(prev => {
+      const selectedTool = prev ? findToolForMarker(prev) : null;
+      if (selectedTool?.updateDraftOnEditDrag) {
+        return selectedTool.updateDraftOnEditDrag(prev, pointIndex, yaw, pitch, meta);
+      }
       const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
       if (prev && key) {
         const newPoints = [...prev[key]];
@@ -644,6 +722,8 @@ function App() {
 
   const handleEditPointAdd = (insertIndex, yaw, pitch) => {
     setDraftMarker(prev => {
+      const selectedTool = prev ? findToolForMarker(prev) : null;
+      if (selectedTool?.allowVertexAdd === false) return prev;
       const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
       if (prev && key) {
         const newPoints = [...prev[key]];
@@ -662,6 +742,8 @@ function App() {
 
   const handleEditPointDelete = (pointIndex) => {
     setDraftMarker(prev => {
+      const selectedTool = prev ? findToolForMarker(prev) : null;
+      if (selectedTool?.allowVertexDelete === false) return prev;
       const key = prev?.polygon ? 'polygon' : prev?.polyline ? 'polyline' : null;
       if (prev && key) {
         const newPoints = [...prev[key]];
@@ -688,11 +770,13 @@ function App() {
       const rawMarker = isEditingThis ? draftMarker : m;
 
       // 属性净化：删除可能冲突的多重内容属性，防止 PSVError 报错
-      const currentMarker = { ...rawMarker };
+      const markerTool = findToolForMarker(rawMarker);
+      const currentMarker = markerTool?.cleanMarker ? markerTool.cleanMarker(rawMarker) : { ...rawMarker };
       if (currentMarker.type === 'point') {
         delete currentMarker.polygon;
         delete currentMarker.polyline;
         delete currentMarker.circle;
+        delete currentMarker.circleEdge;
       } else if (currentMarker.polygon || currentMarker.polyline) {
         delete currentMarker.type;
         delete currentMarker.position;
@@ -790,6 +874,9 @@ function App() {
             anchor: 'bottom center'
           });
         }
+      } else if (markerTool?.renderMarker) {
+        const rendered = markerTool.renderMarker(currentMarker, { hexToRgba });
+        list.push(...(Array.isArray(rendered) ? rendered : [rendered]));
       } else if (currentMarker.polygon || currentMarker.polyline) {
         const strokeColor = currentMarker.strokeColor || '#00ffcc';
         const strokeWidth = `${currentMarker.strokeWidth || 2.5}px`;
@@ -847,6 +934,12 @@ function App() {
       }
     });
     
+    const drawingTool = findToolById(drawingMode);
+    if (drawingTool?.renderDraftMarkers && draftPoints.length > 0) {
+      const renderedDraft = drawingTool.renderDraftMarkers(draftPoints, draftMarker, { hexToRgba });
+      list.push(...(Array.isArray(renderedDraft) ? renderedDraft : [renderedDraft]));
+    }
+
     // 注入绘制中（Polygon/Line/Bezier/Arrow）的临时锚点与连线
     if ((drawingMode === 'polygon' || drawingMode === 'line' || drawingMode === 'bezier' || drawingMode === 'arrow') && draftPoints.length > 0) {
       draftPoints.forEach((pt, index) => {
@@ -911,6 +1004,12 @@ function App() {
     }
 
     // Inject edit vertices for active polygon/polyline editing
+    const editingTool = draftMarker ? findToolForMarker(draftMarker) : null;
+    if (editingPolygonId && editingTool?.getEditHandles) {
+      const handles = editingTool.getEditHandles(draftMarker);
+      list.push(...(Array.isArray(handles) ? handles : [handles]));
+    }
+
     const editPoints = editingPolygonId && draftMarker && (draftMarker.polygon || draftMarker.polyline);
     if (editPoints) {
       const points = draftMarker.polygon || draftMarker.polyline;
@@ -985,30 +1084,11 @@ function App() {
         const showMid = !isBezier && (isPolygon ? (n >= 3) : (index < n - 1));
         if (showMid) {
           const nextPt = isPolygon ? points[(index + 1) % n] : points[index + 1];
-          let yaw1 = pt[0];
-          let yaw2 = nextPt[0];
-          let pitch1 = pt[1];
-          let pitch2 = nextPt[1];
-
-          let diff = yaw2 - yaw1;
-          while (diff > Math.PI) {
-            yaw2 -= 2 * Math.PI;
-            diff = yaw2 - yaw1;
-          }
-          while (diff < -Math.PI) {
-            yaw2 += 2 * Math.PI;
-            diff = yaw2 - yaw1;
-          }
-
-          let midYaw = yaw1 + diff / 2;
-          let midPitch = (pitch1 + pitch2) / 2;
-
-          while (midYaw < 0) midYaw += 2 * Math.PI;
-          while (midYaw >= 2 * Math.PI) midYaw -= 2 * Math.PI;
+          const midpoint = getSegmentMidpoint(pt, nextPt);
 
           list.push({
             id: `virtual-handle-${index}`,
-            position: { yaw: midYaw, pitch: midPitch },
+            position: midpoint,
             html: `
               <div class="virtual-handle-wrapper" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                 <div class="virtual-handle-marker" data-handle-index="${index}" style="background: rgba(0, 229, 255, 0.75); width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid white; cursor: pointer; box-shadow: 0 0 4px rgba(0,0,0,0.6); pointer-events: auto;"></div>
@@ -1406,7 +1486,7 @@ function App() {
                 boxShadow: '0 0 8px #00dfb6'
               }} />
               {(() => {
-                const selectedTool = registeredTools.find(t => t.id === drawingMode);
+                const selectedTool = findToolById(drawingMode);
                 if (!selectedTool) return '';
                 if (selectedTool.type === 'point') {
                   return `提示：请在全景图上左键点击，放置${selectedTool.name}标签`;
