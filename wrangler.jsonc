@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "workers-playground-nameless-sky-5867",
+  "compatibility_date": "2026-06-11",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "birthday"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
