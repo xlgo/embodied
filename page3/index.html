@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>水墨敦煌</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #2f241f;
+      --gold: #d6a246;
+      --sand: #e8c98f;
+      --red: #9b3f2f;
+      --cyan: #2f777b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #fff;
+      font-family: "Noto Serif SC", "Songti SC", "Microsoft YaHei", serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 52%, rgba(220, 184, 104, 0.08), transparent 32%),
+        linear-gradient(115deg, rgba(159, 72, 52, 0.03), transparent 45%);
+    }
+
+    .intro {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 1;
+      pointer-events: none;
+      color: rgba(54, 43, 35, 0.72);
+      text-align: center;
+      letter-spacing: 0.18em;
+      transition: opacity 0.5s ease;
+    }
+
+    .intro.hidden {
+      opacity: 0;
+    }
+
+    .intro h1 {
+      margin: 0 0 14px;
+      font-size: clamp(38px, 7vw, 92px);
+      font-weight: 400;
+    }
+
+    .intro p {
+      margin: 0;
+      font-size: clamp(13px, 1.8vw, 18px);
+      letter-spacing: 0.28em;
+      opacity: 0.72;
+    }
+
+    #inkCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: none;
+    }
+
+    .hint {
+      position: fixed;
+      left: 24px;
+      bottom: 20px;
+      z-index: 3;
+      color: rgba(54, 43, 35, 0.45);
+      font: 13px/1.7 "Microsoft YaHei", sans-serif;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="intro" aria-hidden="true">
+    <section>
+      <h1>敦煌一瞥</h1>
+      <p>移动鼠标，以水墨晕染唤醒壁色</p>
+    </section>
+  </main>
+  <canvas id="inkCanvas" aria-label="鼠标划过时呈现敦煌色调的水墨背景"></canvas>
+  <div class="hint">鼠标划过显示，停下或离开后淡出</div>
+
+  <script>
+    const canvas = document.querySelector("#inkCanvas");
+    const ctx = canvas.getContext("2d");
+    const intro = document.querySelector(".intro");
+    const background = document.createElement("canvas");
+    const bg = background.getContext("2d");
+
+    const pointer = { x: 0, y: 0, active: false, lastMove: 0 };
+    const blooms = [];
+    const palette = {
+      sand: "#e8c98f",
+      gold: "#d6a246",
+      ochre: "#b76e32",
+      cinnabar: "#9b3f2f",
+      umber: "#5f3c2e",
+      turquoise: "#2f777b",
+      jade: "#4d8b78",
+      dusk: "#3f4864"
+    };
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let lastBloomAt = 0;
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      background.width = canvas.width;
+      background.height = canvas.height;
+      bg.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paintDunhuangBackground();
+    }
+
+    function paintDunhuangBackground() {
+      bg.clearRect(0, 0, width, height);
+
+      const sky = bg.createLinearGradient(0, 0, width, height);
+      sky.addColorStop(0, "#f5deb2");
+      sky.addColorStop(0.34, "#d69657");
+      sky.addColorStop(0.66, "#9b3f2f");
+      sky.addColorStop(1, "#2f777b");
+      bg.fillStyle = sky;
+      bg.fillRect(0, 0, width, height);
+
+      drawSun();
+      drawDunes();
+      drawCaves();
+      drawRibbons();
+      drawMuralsTexture();
+      drawVignette();
+    }
+
+    function drawSun() {
+      const r = Math.min(width, height) * 0.13;
+      const x = width * 0.72;
+      const y = height * 0.25;
+      const glow = bg.createRadialGradient(x, y, r * 0.08, x, y, r * 2.4);
+      glow.addColorStop(0, "rgba(248, 211, 115, 0.82)");
+      glow.addColorStop(0.36, "rgba(214, 162, 70, 0.38)");
+      glow.addColorStop(1, "rgba(214, 162, 70, 0)");
+      bg.fillStyle = glow;
+      bg.beginPath();
+      bg.arc(x, y, r * 2.4, 0, Math.PI * 2);
+      bg.fill();
+
+      bg.fillStyle = "rgba(238, 180, 73, 0.82)";
+      bg.beginPath();
+      bg.arc(x, y, r, 0, Math.PI * 2);
+      bg.fill();
+    }
+
+    function drawDunes() {
+      const layers = [
+        { y: 0.52, color: "rgba(109, 64, 48, 0.42)", amp: 34 },
+        { y: 0.66, color: "rgba(183, 110, 50, 0.58)", amp: 44 },
+        { y: 0.79, color: "rgba(232, 201, 143, 0.74)", amp: 62 }
+      ];
+
+      layers.forEach((layer, index) => {
+        bg.beginPath();
+        bg.moveTo(0, height);
+        for (let x = 0; x <= width; x += 18) {
+          const y = height * layer.y
+            + Math.sin(x * 0.008 + index * 1.7) * layer.amp
+            + Math.sin(x * 0.021 + index) * layer.amp * 0.32;
+          bg.lineTo(x, y);
+        }
+        bg.lineTo(width, height);
+        bg.closePath();
+        bg.fillStyle = layer.color;
+        bg.fill();
+      });
+    }
+
+    function drawCaves() {
+      const baseY = height * 0.58;
+      const caveW = Math.max(54, width * 0.06);
+      const gap = caveW * 0.32;
+      const start = width * 0.12;
+      const count = Math.floor((width * 0.76) / (caveW + gap));
+
+      bg.save();
+      bg.shadowColor = "rgba(48, 32, 24, 0.28)";
+      bg.shadowBlur = 18;
+      for (let i = 0; i < count; i++) {
+        const x = start + i * (caveW + gap);
+        const h = caveW * (0.82 + (i % 3) * 0.14);
+        bg.fillStyle = i % 2 ? "rgba(82, 50, 39, 0.58)" : "rgba(57, 38, 34, 0.5)";
+        roundedArch(x, baseY - h, caveW, h);
+        bg.fill();
+
+        bg.fillStyle = i % 2 ? "rgba(47, 119, 123, 0.42)" : "rgba(155, 63, 47, 0.38)";
+        roundedArch(x + caveW * 0.22, baseY - h * 0.58, caveW * 0.56, h * 0.58);
+        bg.fill();
+      }
+      bg.restore();
+    }
+
+    function roundedArch(x, y, w, h) {
+      const r = w / 2;
+      bg.beginPath();
+      bg.moveTo(x, y + h);
+      bg.lineTo(x, y + r);
+      bg.quadraticCurveTo(x, y, x + r, y);
+      bg.quadraticCurveTo(x + w, y, x + w, y + r);
+      bg.lineTo(x + w, y + h);
+      bg.closePath();
+    }
+
+    function drawRibbons() {
+      const ribbons = [
+        { y: 0.23, color: "rgba(47, 119, 123, 0.64)", width: 15, phase: 0 },
+        { y: 0.34, color: "rgba(214, 162, 70, 0.58)", width: 11, phase: 1.8 },
+        { y: 0.43, color: "rgba(155, 63, 47, 0.48)", width: 13, phase: 3.1 }
+      ];
+
+      bg.save();
+      bg.globalCompositeOperation = "screen";
+      ribbons.forEach((ribbon) => {
+        bg.beginPath();
+        for (let x = -80; x <= width + 80; x += 26) {
+          const y = height * ribbon.y
+            + Math.sin(x * 0.011 + ribbon.phase) * 38
+            + Math.sin(x * 0.025 + ribbon.phase) * 13;
+          if (x === -80) bg.moveTo(x, y);
+          else bg.lineTo(x, y);
+        }
+        bg.strokeStyle = ribbon.color;
+        bg.lineWidth = ribbon.width;
+        bg.lineCap = "round";
+        bg.stroke();
+      });
+      bg.restore();
+    }
+
+    function drawMuralsTexture() {
+      bg.save();
+      bg.globalAlpha = 0.25;
+      for (let i = 0; i < 360; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const r = Math.random() * 1.8 + 0.4;
+        bg.fillStyle = Math.random() > 0.55 ? "rgba(255, 238, 190, 0.55)" : "rgba(62, 43, 34, 0.28)";
+        bg.beginPath();
+        bg.arc(x, y, r, 0, Math.PI * 2);
+        bg.fill();
+      }
+      bg.restore();
+    }
+
+    function drawVignette() {
+      const vignette = bg.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) * 0.68);
+      vignette.addColorStop(0, "rgba(255, 255, 255, 0)");
+      vignette.addColorStop(1, "rgba(43, 31, 26, 0.34)");
+      bg.fillStyle = vignette;
+      bg.fillRect(0, 0, width, height);
+    }
+
+    function addBloom(x, y, force = 1) {
+      const now = performance.now();
+      const base = 58 + Math.random() * 46;
+      blooms.push({
+        x,
+        y,
+        born: now,
+        life: 760 + Math.random() * 420,
+        radius: base * force,
+        seed: Math.random() * 1000,
+        points: 18 + Math.floor(Math.random() * 12)
+      });
+      if (blooms.length > 56) blooms.splice(0, blooms.length - 56);
+    }
+
+    function organicPath(item, age) {
+      const grow = 0.32 + Math.sin(Math.min(age, 1) * Math.PI * 0.5) * 0.82;
+      const radius = item.radius * grow;
+      ctx.beginPath();
+      for (let i = 0; i <= item.points; i++) {
+        const angle = (i / item.points) * Math.PI * 2;
+        const wobble = 0.78
+          + Math.sin(angle * 3 + item.seed) * 0.11
+          + Math.sin(angle * 7 + item.seed * 0.7) * 0.08
+          + Math.sin(age * 7 + angle * 5) * 0.05;
+        const x = item.x + Math.cos(angle) * radius * wobble;
+        const y = item.y + Math.sin(angle) * radius * wobble;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
+    function drawBloom(item, now) {
+      const age = (now - item.born) / item.life;
+      if (age >= 1) return false;
+
+      const alpha = Math.pow(1 - age, 1.55);
+      ctx.save();
+      organicPath(item, age);
+      ctx.clip();
+      ctx.globalAlpha = alpha;
+      ctx.filter = `blur(${2 + age * 7}px) saturate(1.08)`;
+      ctx.drawImage(background, 0, 0, width, height);
+
+      ctx.globalCompositeOperation = "multiply";
+      ctx.filter = `blur(${10 + age * 20}px)`;
+      const stain = ctx.createRadialGradient(item.x, item.y, 2, item.x, item.y, item.radius * 1.35);
+      stain.addColorStop(0, "rgba(55, 36, 28, 0.06)");
+      stain.addColorStop(0.58, "rgba(55, 36, 28, 0.16)");
+      stain.addColorStop(1, "rgba(55, 36, 28, 0)");
+      ctx.fillStyle = stain;
+      ctx.fillRect(item.x - item.radius * 1.5, item.y - item.radius * 1.5, item.radius * 3, item.radius * 3);
+      ctx.restore();
+      return true;
+    }
+
+    function render(now) {
+      ctx.clearRect(0, 0, width, height);
+
+      if (pointer.active && now - pointer.lastMove > 260) {
+        pointer.active = false;
+      }
+
+      for (let i = blooms.length - 1; i >= 0; i--) {
+        if (!drawBloom(blooms[i], now)) blooms.splice(i, 1);
+      }
+
+      if (pointer.active) {
+        ctx.save();
+        ctx.globalAlpha = 0.48;
+        ctx.strokeStyle = "rgba(64, 43, 34, 0.18)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(pointer.x, pointer.y, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      intro.classList.toggle("hidden", blooms.length > 0 || pointer.active);
+      requestAnimationFrame(render);
+    }
+
+    function movePointer(event) {
+      const now = performance.now();
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      pointer.active = true;
+      pointer.lastMove = now;
+
+      if (now - lastBloomAt > 26) {
+        addBloom(pointer.x, pointer.y, event.pointerType === "touch" ? 1.2 : 1);
+        if (Math.random() > 0.62) {
+          addBloom(pointer.x + (Math.random() - 0.5) * 42, pointer.y + (Math.random() - 0.5) * 42, 0.55);
+        }
+        lastBloomAt = now;
+      }
+    }
+
+    canvas.addEventListener("pointermove", movePointer);
+    canvas.addEventListener("pointerenter", movePointer);
+    canvas.addEventListener("pointerleave", () => {
+      pointer.active = false;
+    });
+    window.addEventListener("resize", resize);
+
+    resize();
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
