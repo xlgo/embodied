@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>控制中心 - System A</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #0f0c29 0%, #1a1a3e 50%, #24243e 100%);
+    color: #e0e0ff;
+    min-height: 100vh;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .header .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #7c4dff;
+    box-shadow: 0 0 10px #7c4dff88;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.3); }
+  }
+  .header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #7c4dff, #b388ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(124, 77, 255, 0.08);
+    border: 1px solid rgba(124, 77, 255, 0.15);
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: #b388ff;
+  }
+  .status-bar .live {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #69f0ae;
+    box-shadow: 0 0 6px #69f0ae88;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .btn {
+    padding: 12px 10px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .btn:hover::after { opacity: 1; }
+  .btn:active { transform: scale(0.96); }
+
+  .btn-sync {
+    background: linear-gradient(135deg, #7c4dff, #651fff);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(124, 77, 255, 0.35);
+  }
+  .btn-sync:hover { box-shadow: 0 6px 20px rgba(124, 77, 255, 0.5); }
+
+  .btn-alert {
+    background: linear-gradient(135deg, #ff5252, #d50000);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(255, 82, 82, 0.3);
+  }
+  .btn-alert:hover { box-shadow: 0 6px 20px rgba(255, 82, 82, 0.45); }
+
+  .btn-update {
+    background: linear-gradient(135deg, #00e5ff, #0091ea);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 229, 255, 0.3);
+  }
+  .btn-update:hover { box-shadow: 0 6px 20px rgba(0, 229, 255, 0.45); }
+
+  .btn-theme {
+    background: linear-gradient(135deg, #69f0ae, #00c853);
+    color: #1a1a3e;
+    box-shadow: 0 4px 14px rgba(105, 240, 174, 0.3);
+  }
+  .btn-theme:hover { box-shadow: 0 6px 20px rgba(105, 240, 174, 0.45); }
+
+  .slider-group {
+    margin-bottom: 18px;
+  }
+  .slider-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #b388ff;
+    margin-bottom: 6px;
+  }
+  .slider-group input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(124, 77, 255, 0.2);
+    outline: none;
+  }
+  .slider-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #7c4dff;
+    box-shadow: 0 0 8px #7c4dff88;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .slider-group input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .log {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(124, 77, 255, 0.1);
+    border-radius: 10px;
+    padding: 12px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+  }
+  .log::-webkit-scrollbar { width: 4px; }
+  .log::-webkit-scrollbar-track { background: transparent; }
+  .log::-webkit-scrollbar-thumb { background: #7c4dff44; border-radius: 4px; }
+  .log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    animation: fadeIn 0.3s ease;
+    display: flex;
+    gap: 6px;
+  }
+  .log-entry .time { color: #7c4dff88; }
+  .log-entry.sent { color: #b388ff; }
+  .log-entry.received { color: #69f0ae; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="dot"></div>
+    <h2>⚡ 控制中心 · SYSTEM A</h2>
+  </div>
+  <div class="status-bar">
+    <div class="live"></div>
+    <span>在线 · 已连接 System B & C</span>
+  </div>
+  <div class="controls">
+    <button class="btn btn-sync" onclick="sendMsg('sync', {timestamp: Date.now()})">🔄 同步数据</button>
+    <button class="btn btn-alert" onclick="sendMsg('alert', {level: 'warning', text: '系统警报'})">🚨 发送警报</button>
+    <button class="btn btn-update" onclick="sendMsg('update_chart', {value: Math.round(Math.random()*100)})">📊 更新图表</button>
+    <button class="btn btn-theme" onclick="sendMsg('theme', {mode: document.getElementById('themeMode').checked ? 'dark' : 'light'})">🎨 切换主题</button>
+  </div>
+
+  <div class="slider-group">
+    <label><span>数据流速率</span><span id="rateVal">50%</span></label>
+    <input type="range" min="0" max="100" value="50" oninput="document.getElementById('rateVal').textContent=this.value+'%'; sendMsg('rate_change', {rate: parseInt(this.value)})">
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12px;color:#b388ff;">
+    <span>暗色模式</span>
+    <label style="position:relative;width:36px;height:20px;">
+      <input type="checkbox" id="themeMode" checked style="opacity:0;width:0;height:0;">
+      <span style="position:absolute;inset:0;background:rgba(124,77,255,0.2);border-radius:20px;cursor:pointer;transition:0.3s;" onclick="this.parentElement.querySelector('input').checked=!this.parentElement.querySelector('input').checked;"></span>
+      <span style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:#7c4dff;border-radius:50%;transition:0.3s;pointer-events:none;" id="toggleDot"></span>
+    </label>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    const logEl = document.getElementById('log');
+
+    function addLog(text, type = 'sent') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+      entry.innerHTML = `<span class="time">${time}</span> <span>${type === 'sent' ? '↑' : '↓'} ${text}</span>`;
+      logEl.prepend(entry);
+      if (logEl.children.length > 50) logEl.removeChild(logEl.lastChild);
+    }
+
+    function sendMsg(type, payload) {
+      const msg = { from: 'A', type, payload };
+      window.parent.postMessage(msg, '*');
+      addLog(`[${type}] → 已广播`, 'sent');
+    }
+
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.from && e.data.from !== 'A') {
+        addLog(`[${e.data.type}] ← 来自 System ${e.data.from}`, 'received');
+        // Handle incoming messages
+        if (e.data.type === 'pong') {
+          addLog(`收到 System ${e.data.from} 的响应确认`, 'received');
+        }
+      }
+    });
+
+    // Initial heartbeat
+    setTimeout(() => sendMsg('heartbeat', { status: 'online' }), 500);
+  </script>
+</body>
+</html>

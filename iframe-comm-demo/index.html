@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多系统通讯演示 · Inter-System Communication Demo</title>
+<meta name="description" content="三个Web系统通过postMessage进行跨iframe通讯的交互式演示">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0a1a;
+    --bg-secondary: #111128;
+    --bg-card: rgba(20, 20, 50, 0.6);
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --text-primary: #e8e8ff;
+    --text-secondary: #8888bb;
+    --accent-a: #7c4dff;
+    --accent-b: #00e5ff;
+    --accent-c: #ea80fc;
+    --glow-a: rgba(124, 77, 255, 0.3);
+    --glow-b: rgba(0, 229, 255, 0.3);
+    --glow-c: rgba(234, 128, 252, 0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 20% 30%, rgba(124, 77, 255, 0.08), transparent),
+      radial-gradient(ellipse 500px 350px at 70% 60%, rgba(0, 229, 255, 0.06), transparent),
+      radial-gradient(ellipse 400px 300px at 50% 80%, rgba(234, 128, 252, 0.06), transparent);
+    pointer-events: none;
+    z-index: 0;
+    animation: bgShift 15s ease-in-out infinite alternate;
+  }
+  @keyframes bgShift {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+  }
+
+  /* Header */
+  .top-bar {
+    position: relative;
+    z-index: 10;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-subtle);
+    backdrop-filter: blur(20px);
+    background: rgba(10, 10, 26, 0.8);
+  }
+  .top-bar .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .top-bar .logo-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-c));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 16px var(--glow-a);
+  }
+  .top-bar h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .top-bar h1 span {
+    font-weight: 400;
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-left: 8px;
+  }
+  .top-bar .status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .top-bar .status .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #69f0ae;
+    box-shadow: 0 0 8px #69f0ae88;
+    animation: livePulse 1.5s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Connection topology */
+  .topology-bar {
+    position: relative;
+    z-index: 10;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(10, 10, 26, 0.5);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .topo-node {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .topo-node.a { background: rgba(124, 77, 255, 0.12); border: 1px solid rgba(124, 77, 255, 0.25); color: #b388ff; }
+  .topo-node.b { background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.2); color: #18ffff; }
+  .topo-node.c { background: rgba(234, 128, 252, 0.08); border: 1px solid rgba(234, 128, 252, 0.2); color: #ea80fc; }
+  .topo-arrow {
+    color: var(--text-secondary);
+    font-size: 16px;
+    animation: arrowFlow 1.5s ease-in-out infinite;
+  }
+  @keyframes arrowFlow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Main grid */
+  .main {
+    position: relative;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    height: calc(100vh - 120px);
+  }
+
+  .system-panel {
+    position: relative;
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+  }
+  .system-panel:last-child { border-right: none; }
+
+  .panel-header {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-subtle);
+    backdrop-filter: blur(10px);
+  }
+  .panel-header .panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-header .panel-title .indicator {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .panel-header.a .panel-title { color: #b388ff; }
+  .panel-header.a .indicator { background: var(--accent-a); box-shadow: 0 0 6px var(--glow-a); }
+  .panel-header.b .panel-title { color: #18ffff; }
+  .panel-header.b .indicator { background: var(--accent-b); box-shadow: 0 0 6px var(--glow-b); }
+  .panel-header.c .panel-title { color: #ea80fc; }
+  .panel-header.c .indicator { background: var(--accent-c); box-shadow: 0 0 6px var(--glow-c); }
+
+  .panel-header .panel-badge {
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .panel-header.a .panel-badge { background: rgba(124, 77, 255, 0.12); color: #b388ff; }
+  .panel-header.b .panel-badge { background: rgba(0, 229, 255, 0.08); color: #18ffff; }
+  .panel-header.c .panel-badge { background: rgba(234, 128, 252, 0.08); color: #ea80fc; }
+
+  .system-panel iframe {
+    flex: 1;
+    border: none;
+    width: 100%;
+  }
+
+  /* Message flow overlay */
+  .msg-flow-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 12px 32px;
+    background: rgba(10, 10, 26, 0.9);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+  }
+  .msg-flow-overlay .flow-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .msg-flow-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    animation: flowIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+  }
+  .flow-item.a-to { background: rgba(124, 77, 255, 0.1); color: #b388ff; border: 1px solid rgba(124, 77, 255, 0.15); }
+  .flow-item.b-to { background: rgba(0, 229, 255, 0.08); color: #18ffff; border: 1px solid rgba(0, 229, 255, 0.12); }
+  .flow-item.c-to { background: rgba(234, 128, 252, 0.08); color: #ea80fc; border: 1px solid rgba(234, 128, 252, 0.12); }
+
+  @keyframes flowIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .flow-counter {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-subtle);
+  }
+  .flow-counter span {
+    color: #69f0ae;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .main {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      height: auto;
+    }
+    .system-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--border-subtle);
+      height: 50vh;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="logo">
+      <div class="logo-icon">🔗</div>
+      <h1>多系统通讯平台 <span>Inter-System Communication</span></h1>
+    </div>
+    <div class="status">
+      <div class="live-dot"></div>
+      <span>3 个系统在线</span>
+      <span>·</span>
+      <span id="msgCount">0 条消息</span>
+    </div>
+  </div>
+
+  <!-- Topology Bar -->
+  <div class="topology-bar">
+    <div class="topo-node a"><span class="indicator" style="width:6px;height:6px;border-radius:50%;background:#7c4dff;display:inline-block;"></span> System A · 控制中心</div>
+    <span class="topo-arrow">⇄</span>
+    <div class="topo-node b"><span class="indicator" style="width:6px;height:6px;border-radius:50%;background:#00e5ff;display:inline-block;"></span> System B · 数据监控</div>
+    <span class="topo-arrow">⇄</span>
+    <div class="topo-node c"><span class="indicator" style="width:6px;height:6px;border-radius:50%;background:#ea80fc;display:inline-block;"></span> System C · 消息中枢</div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="system-panel">
+      <div class="panel-header a">
+        <div class="panel-title"><div class="indicator"></div> System A</div>
+        <div class="panel-badge">控制中心</div>
+      </div>
+      <iframe id="frameA" src="system-a.html"></iframe>
+    </div>
+    <div class="system-panel">
+      <div class="panel-header b">
+        <div class="panel-title"><div class="indicator"></div> System B</div>
+        <div class="panel-badge">数据监控</div>
+      </div>
+      <iframe id="frameB" src="system-b.html"></iframe>
+    </div>
+    <div class="system-panel">
+      <div class="panel-header c">
+        <div class="panel-title"><div class="indicator"></div> System C</div>
+        <div class="panel-badge">消息中枢</div>
+      </div>
+      <iframe id="frameC" src="system-c.html"></iframe>
+    </div>
+  </div>
+
+  <!-- Message Flow Bar -->
+  <div class="msg-flow-overlay">
+    <div class="flow-label">📡 消息流</div>
+    <div class="msg-flow-container" id="flowContainer"></div>
+    <div class="flow-counter">总计 <span id="totalCounter">0</span></div>
+  </div>
+
+  <script>
+    const frameA = document.getElementById('frameA');
+    const frameB = document.getElementById('frameB');
+    const frameC = document.getElementById('frameC');
+    const flowContainer = document.getElementById('flowContainer');
+    const totalCounter = document.getElementById('totalCounter');
+    const msgCountEl = document.getElementById('msgCount');
+    let totalMessages = 0;
+
+    // Message broker - parent relays messages between iframes
+    window.addEventListener('message', (e) => {
+      if (!e.data || !e.data.from) return;
+
+      const { from, type, payload } = e.data;
+      totalMessages++;
+      totalCounter.textContent = totalMessages;
+      msgCountEl.textContent = `${totalMessages} 条消息`;
+
+      // Add to flow bar
+      addFlowItem(from, type);
+
+      // Relay to all OTHER iframes
+      const targets = { A: frameA, B: frameB, C: frameC };
+      for (const [id, frame] of Object.entries(targets)) {
+        if (id !== from) {
+          frame.contentWindow.postMessage(e.data, '*');
+        }
+      }
+    });
+
+    function addFlowItem(from, type) {
+      const item = document.createElement('div');
+      item.className = `flow-item ${from.toLowerCase()}-to`;
+
+      const icons = {
+        sync: '🔄', alert: '🚨', update_chart: '📊', theme: '🎨',
+        heartbeat: '💓', pong: '✅', rate_change: '⚡', status_report: '📈',
+        chat_msg: '💬', ping: '📡', request_status: '📋'
+      };
+      const icon = icons[type] || '📦';
+
+      item.textContent = `${icon} ${from}→ ${type}`;
+      flowContainer.appendChild(item);
+
+      // Limit items
+      while (flowContainer.children.length > 15) {
+        flowContainer.removeChild(flowContainer.firstChild);
+      }
+
+      // Auto-fade old items
+      setTimeout(() => {
+        item.style.transition = 'opacity 0.5s';
+        item.style.opacity = '0.3';
+      }, 8000);
+    }
+  </script>
+</body>
+</html>

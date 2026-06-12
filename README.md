@@ -19,6 +19,17 @@ Key capabilities:
 - Floating configuration panels for style, metadata, and linked actions.
 - Marker list and filtering controls for navigating and managing annotations.
 
+### ptz-map-localizer
+
+`ptz-map-localizer` is a PTZ camera click-to-map localization prototype built with React, Vite, TypeScript, and the TianDiTu JavaScript API.
+
+Key capabilities:
+
+- Logs into the reference panoramic platform and reads captcha/login/home data through the `/pano/*` HTTP APIs.
+- Converts clicked image pixels, PTZ pan/tilt/FOV, camera height, and calibration offsets into WGS84 target coordinates.
+- Displays camera and target positions on TianDiTu with a confidence state and error-radius overlay.
+- Includes demo frame/PTZ data and unit tests for the core localization math.
+
 ## Development
 
 Start the `psv` development server:
@@ -36,11 +47,27 @@ cd psv
 npm run build
 ```
 
+Start the `ptz-map-localizer` development server:
+
+```bash
+cd ptz-map-localizer
+npm install
+npm run dev
+```
+
+Run its tests:
+
+```bash
+cd ptz-map-localizer
+npm run test
+```
+
 ## Repository Layout
 
 ```text
 .
 +-- psv/        # Panorama annotation application
++-- ptz-map-localizer/ # PTZ image-click to map-localization prototype
 +-- birthday/   # Standalone visual page/demo
 +-- README.md   # English documentation
 `-- README.zh-CN.md # Chinese documentation
