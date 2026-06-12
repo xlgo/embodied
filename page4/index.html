@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>墨染敦煌 · 梦回千载 | Dunhuang Ink Reveal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Serif+SC:wght@300;600;900&display=swap');
+
+        :root {
+            --primary-color: #8c2d19; /* 敦煌朱砂 */
+            --bg-color: #ffffff;
+            --text-dark: #1a1a1a;
+            --text-muted: #666666;
+            --dunhuang-gold: #d4a373;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Noto Serif SC', serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            user-select: none;
+        }
+
+        /* 渲染主Canvas */
+        #main-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI层，置于最上层 */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+        }
+
+        .ui-layer * {
+            pointer-events: auto; /* 恢复UI子元素的交互 */
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            font-family: 'Noto Serif SC', serif;
+            font-weight: 900;
+            font-size: 1.5rem;
+            letter-spacing: 0.2em;
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+            padding-left: 12px;
+            line-height: 1.2;
+        }
+
+        .logo span {
+            display: block;
+            font-size: 0.75rem;
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            transition: color 0.3s, transform 0.3s;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        /* 居中标题与引导词 */
+        .hero-section {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 4;
+            pointer-events: none;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .hero-title {
+            font-size: 4.5rem;
+            font-weight: 900;
+            letter-spacing: 0.3em;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.9);
+            opacity: 0.95;
+            transition: transform 0.5s ease;
+        }
+
+        .hero-subtitle {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            letter-spacing: 0.4em;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .instruction-tip {
+            font-size: 0.95rem;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 12px 28px;
+            border-radius: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            animation: breathe 3s infinite ease-in-out;
+        }
+
+        .instruction-tip::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary-color);
+        }
+
+        /* 底部敦煌色彩展示区 */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 20px;
+        }
+
+        .color-swatch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .color-swatch:hover {
+            transform: translateY(-8px);
+        }
+
+        .color-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: box-shadow 0.3s;
+        }
+
+        .color-swatch:hover .color-circle {
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .color-circle.cinnabar { background-color: #8c2d19; }
+        .color-circle.malachite { background-color: #2b614d; }
+        .color-circle.azurite { background-color: #1a3c61; }
+        .color-circle.ochre { background-color: #b87333; }
+
+        .color-name {
+            font-size: 0.75rem;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            height: 60px;
+            font-weight: 600;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            border-radius: 16px;
+            max-width: 320px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.06);
+            transform: translateY(0);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .info-panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+        }
+
+        .info-panel h3 {
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            letter-spacing: 0.1em;
+            border-bottom: 1px solid rgba(140, 45, 25, 0.1);
+            padding-bottom: 6px;
+        }
+
+        .info-panel p {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            text-align: justify;
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.7; transform: scale(0.98); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .hero-title { font-size: 2.8rem; }
+            .hero-subtitle { font-size: 0.9rem; }
+            .nav-links, .info-panel { display: none; }
+            .ui-layer { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 主渲染 Canvas -->
+    <canvas id="main-canvas"></canvas>
+
+    <!-- 顶层 UI 内容 -->
+    <div class="ui-layer">
+        <header>
+            <div class="logo">
+                敦煌墨韵
+                <span>Dunhuang Resonance</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#about">关于壁画</a></li>
+                <li><a href="#colors">矿物色彩</a></li>
+                <li><a href="#history">丝路风华</a></li>
+            </ul>
+        </header>
+
+        <div class="hero-section">
+            <h1 class="hero-title">墨 韵 揭 影</h1>
+            <div class="hero-subtitle">REVEALING THE IMMORTAL COLORS OF DUNHUANG</div>
+            <div class="instruction-tip">移指化墨，落笔成沙，唤醒千载莫高神韵</div>
+        </div>
+
+        <footer>
+            <div class="color-palette">
+                <div class="color-swatch">
+                    <div class="color-circle cinnabar"></div>
+                    <div class="color-name">朱砂 · Cinnabar</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-circle malachite"></div>
+                    <div class="color-name">石绿 · Malachite</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-circle azurite"></div>
+                    <div class="color-name">石青 · Azurite</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-circle ochre"></div>
+                    <div class="color-name">赭石 · Ochre</div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <h3>敦煌色彩美学</h3>
+                <p>采用天然孔雀石、蓝铜矿、朱砂与赭石研磨而成的矿物颜料，历经千年风沙仍能于墨色洇散中透出绝世的光彩。每一次划动，都是一场跨越时空的艺术对话。</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 离屏Canvas用于渲染高质感的水墨融合遮罩
+        const maskCanvas = document.createElement('canvas');
+        const maskCtx = maskCanvas.getContext('2d');
+
+        let width = canvas.width = maskCanvas.width = window.innerWidth;
+        let height = canvas.height = maskCanvas.height = window.innerHeight;
+
+        // 载入敦煌背景图
+        const bgImg = new Image();
+        bgImg.src = 'dunhuang_bg.png';
+        let bgLoaded = false;
+        bgImg.onload = () => {
+            bgLoaded = true;
+        };
+
+        // 粒子系统：模拟真实的“水墨洇散”与“金色尘埃”
+        class InkParticle {
+            constructor(x, y, isSplatter = false) {
+                this.x = x;
+                this.y = y;
+                this.initialRadius = isSplatter ? Math.random() * 8 + 4 : Math.random() * 35 + 25;
+                this.radius = this.initialRadius * 0.2;
+                this.targetRadius = this.initialRadius * (isSplatter ? 1.5 : 2.2);
+                this.opacity = isSplatter ? 0.7 : 0.95;
+                this.life = 0;
+                this.maxLife = isSplatter ? Math.random() * 40 + 30 : Math.random() * 100 + 80;
+                
+                // 洇散微移动力学
+                const angle = Math.random() * Math.PI * 2;
+                const speed = isSplatter ? Math.random() * 2 + 1 : Math.random() * 0.3;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                
+                this.isSplatter = isSplatter;
+                // 纸张纤维阻力系数
+                this.friction = 0.97;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                this.life++;
+                
+                // 模拟墨水在宣纸上的浸润扩散
+                const progress = this.life / this.maxLife;
+                this.radius = this.radius + (this.targetRadius - this.radius) * 0.04;
+                
+                if (progress > 0.6) {
+                    // 后期渐渐淡出
+                    this.opacity = Math.max(0, 1 - progress);
+                }
+            }
+
+            draw(context) {
+                // 水墨具有虚化边缘，使用径向渐变模拟
+                const grad = context.createRadialGradient(
+                    this.x, this.y, this.radius * 0.1,
+                    this.x, this.y, this.radius
+                );
+                
+                // 模拟宣纸上“墨分五色”的浓淡变化
+                const alpha = this.opacity;
+                grad.addColorStop(0, `rgba(0, 0, 0, ${alpha})`);
+                grad.addColorStop(0.3, `rgba(0, 0, 0, ${alpha * 0.75})`);
+                grad.addColorStop(0.6, `rgba(0, 0, 0, ${alpha * 0.3})`);
+                grad.addColorStop(1, `rgba(0, 0, 0, 0)`);
+
+                context.fillStyle = grad;
+                context.beginPath();
+                context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                context.fill();
+            }
+        }
+
+        // 金色粉尘粒子：增强敦煌矿物颜料的华丽感与现代设计感
+        class GoldDust {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 3 + 1;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 1.5 + 0.5;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed - 0.5; // 轻微向上漂浮
+                this.alpha = Math.random() * 0.8 + 0.2;
+                this.life = 0;
+                this.maxLife = Math.random() * 60 + 40;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy -= 0.01; // 向上微漂
+                this.alpha = Math.max(0, this.alpha - 0.012);
+                this.life++;
+            }
+
+            draw(context) {
+                context.save();
+                context.shadowBlur = 8;
+                context.shadowColor = 'rgba(212, 163, 115, 0.8)';
+                context.fillStyle = `rgba(212, 163, 115, ${this.alpha})`;
+                context.beginPath();
+                context.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                context.fill();
+                context.restore();
+            }
+        }
+
+        let inkParticles = [];
+        let goldDusts = [];
+
+        // 交互逻辑控制
+        let lastX = null;
+        let lastY = null;
+        let lastActiveTime = Date.now();
+        let mouseInArea = false;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = maskCanvas.width = window.innerWidth;
+            height = canvas.height = maskCanvas.height = window.innerHeight;
+        });
+
+        // 监听页面鼠标交互
+        window.addEventListener('mouseenter', () => {
+            mouseInArea = true;
+            lastActiveTime = Date.now();
+        });
+
+        window.addEventListener('mouseleave', () => {
+            mouseInArea = false;
+            lastActiveTime = Date.now() - 2000; // 视作立即满足离开2秒
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            mouseInArea = true;
+            lastActiveTime = Date.now();
+
+            const cx = e.clientX;
+            const cy = e.clientY;
+
+            // 1. 随着鼠标移动连续创建主墨迹粒子
+            inkParticles.push(new InkParticle(cx, cy));
+
+            // 2. 较小概率触发随机喷溅墨点
+            if (Math.random() < 0.25) {
+                const rx = cx + (Math.random() * 80 - 40);
+                const ry = cy + (Math.random() * 80 - 40);
+                inkParticles.push(new InkParticle(rx, ry, true));
+            }
+
+            // 3. 产生敦煌金色尘埃
+            if (Math.random() < 0.4) {
+                goldDusts.push(new GoldDust(cx, cy));
+            }
+
+            // 4. 鼠标路径插值，防止过快划动断触
+            if (lastX !== null && lastY !== null) {
+                const dist = Math.hypot(cx - lastX, cy - lastY);
+                if (dist > 15) {
+                    const steps = Math.floor(dist / 15);
+                    for (let i = 1; i < steps; i++) {
+                        const ratio = i / steps;
+                        const ix = lastX + (cx - lastX) * ratio;
+                        const iy = lastY + (cy - lastY) * ratio;
+                        inkParticles.push(new InkParticle(ix, iy));
+                        if (Math.random() < 0.15) {
+                            goldDusts.push(new GoldDust(ix, iy));
+                        }
+                    }
+                }
+            }
+
+            lastX = cx;
+            lastY = cy;
+        });
+
+        // 渲染主循环
+        function step() {
+            requestAnimationFrame(step);
+
+            const now = Date.now();
+            const timeSinceLastActive = now - lastActiveTime;
+            
+            // 是否处于静止或离开状态超2秒
+            const shouldFade = !mouseInArea || timeSinceLastActive >= 2000;
+
+            if (shouldFade) {
+                lastX = null;
+                lastY = null;
+            }
+
+            // 1. 更新与清理粒子
+            inkParticles = inkParticles.filter(p => p.life < p.maxLife && p.opacity > 0.01);
+            inkParticles.forEach(p => p.update());
+
+            goldDusts = goldDusts.filter(g => g.life < g.maxLife && g.alpha > 0.01);
+            goldDusts.forEach(g => g.update());
+
+            // 2. 渲染遮罩（离屏Canvas）
+            maskCtx.clearRect(0, 0, width, height);
+            
+            // 使用 CSS filter 级联模糊和对比度，实现水墨交融的特殊黏滞感
+            maskCtx.filter = 'blur(12px) contrast(14)';
+            
+            // 绘制粒子到离屏遮罩画布
+            inkParticles.forEach(p => p.draw(maskCtx));
+            
+            // 重置滤镜以免影响后续绘制
+            maskCtx.filter = 'none';
+
+            // 3. 在主画布上进行遮罩合成
+            ctx.clearRect(0, 0, width, height);
+
+            if (bgLoaded) {
+                // 计算背景图 Cover 比例绘制
+                const imgRatio = bgImg.width / bgImg.height;
+                const canvasRatio = width / height;
+                let dw, dh, dx, dy;
+
+                if (canvasRatio > imgRatio) {
+                    dw = width;
+                    dh = width / imgRatio;
+                    dx = 0;
+                    dy = (height - dh) / 2;
+                } else {
+                    dw = height * imgRatio;
+                    dh = height;
+                    dx = (width - dw) / 2;
+                    dy = 0;
+                }
+
+                // 绘制底层敦煌背景图
+                ctx.drawImage(bgImg, dx, dy, dw, dh);
+            }
+
+            // 将离屏水墨遮罩与背景图像做 destination-in 合成，使得背景只在水墨覆盖的区域显现
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.drawImage(maskCanvas, 0, 0);
+
+            // 4. 将背景以外的部分渲染为纯白色，并叠加上金色微粒
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            // 5. 切换回正常合成模式绘制金色粒子与微光
+            ctx.globalCompositeOperation = 'source-over';
+            goldDusts.forEach(g => g.draw(ctx));
+
+            // 如果处于淡出阶段且当前已经没有新产生的墨水，缓慢给画布铺上白色层以确保淡出完全
+            if (shouldFade && inkParticles.length === 0) {
+                // 缓慢淡出到纯白，根据是否完全离开屏幕调整淡出速度
+                const fadeAlpha = !mouseInArea ? 0.04 : 0.025;
+                ctx.fillStyle = `rgba(255, 255, 255, ${fadeAlpha})`;
+                ctx.fillRect(0, 0, width, height);
+            }
+        }
+
+        step();
+    </script>
+</body>
+</html>
