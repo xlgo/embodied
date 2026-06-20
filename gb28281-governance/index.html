@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GB28281 设备接入与数据治理平台</title>
+  <!-- 引入 Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 背景粒子/光斑特效 -->
+  <div class="glow-bg"></div>
+
+  <!-- 主应用容器 -->
+  <div class="app-container">
+    
+    <!-- 头部导航栏 -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div class="title-group">
+          <h1>GB28281 接入治理系统</h1>
+          <span class="sub-title">DATA GOVERNANCE & RELATIONSHIP MANAGER</span>
+        </div>
+      </div>
+      
+      <!-- 数据概览小部件 -->
+      <div class="stats-overview">
+        <div class="stat-card">
+          <span class="stat-label">总设备数</span>
+          <span class="stat-value" id="stat-total">1,248</span>
+        </div>
+        <div class="stat-card online">
+          <span class="stat-label">在线率</span>
+          <span class="stat-value" id="stat-online-rate">94.2%</span>
+        </div>
+        <div class="stat-card warning">
+          <span class="stat-label">未治理设备</span>
+          <span class="stat-value" id="stat-unassigned">37</span>
+        </div>
+      </div>
+
+      <!-- 操作菜单 -->
+      <div class="header-actions">
+        <button class="btn btn-primary" id="btn-open-import">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          导入新设备
+        </button>
+      </div>
+    </header>
+
+    <!-- 主体内容布局 -->
+    <main class="app-content">
+      
+      <!-- 左侧：组织架构树 -->
+      <aside class="sidebar-panel">
+        <div class="panel-header">
+          <h2>组织架构树</h2>
+          <button class="btn-icon" id="btn-add-org" title="添加组织">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="panel-search">
+          <input type="text" id="org-search" placeholder="搜索组织..." />
+        </div>
+
+        <div class="org-tree-wrapper">
+          <div class="org-tree" id="org-tree-root">
+            <!-- 树节点由 JS 动态生成 -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- 中间主视图：设备治理与关系调整 -->
+      <section class="main-panel">
+        <div class="panel-header">
+          <div class="panel-title-area">
+            <h2 id="current-org-title">全部接入设备</h2>
+            <span class="badge" id="current-org-count">0</span>
+          </div>
+          <div class="filter-actions">
+            <!-- 批量治理按钮区，默认隐藏，有勾选时显示 -->
+            <div class="batch-bar" id="batch-actions-bar">
+              <span class="batch-count">已选择 <strong id="selected-count">0</strong> 台设备</span>
+              <button class="btn btn-secondary btn-sm" id="btn-batch-assign">
+                批量分配组织
+              </button>
+              <button class="btn btn-danger btn-sm" id="btn-batch-delete">
+                批量下线
+              </button>
+            </div>
+            
+            <div class="search-box">
+              <input type="text" id="device-search" placeholder="搜索设备名称/国标编码/IP..." />
+            </div>
+
+            <select class="select-filter" id="filter-status">
+              <option value="all">所有状态</option>
+              <option value="online">在线</option>
+              <option value="offline">离线</option>
+            </select>
+
+            <select class="select-filter" id="filter-governed">
+              <option value="all">治理状态</option>
+              <option value="yes">已分配组织</option>
+              <option value="no">未分配组织 (急需治理)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 设备列表数据 -->
+        <div class="table-container">
+          <table class="device-table">
+            <thead>
+              <tr>
+                <th width="40">
+                  <input type="checkbox" id="check-all" />
+                </th>
+                <th>设备名称 / 国标编码 (20位)</th>
+                <th>设备IP</th>
+                <th>通道数</th>
+                <th>状态</th>
+                <th>所属组织</th>
+                <th width="120">操作</th>
+              </tr>
+            </thead>
+            <tbody id="device-list-body">
+              <!-- 由 JS 填充 -->
+            </tbody>
+          </table>
+          
+          <!-- 空状态 -->
+          <div class="empty-state hidden" id="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <p>没有找到符合条件的设备</p>
+          </div>
+        </div>
+
+        <!-- 底部分页或状态提示 -->
+        <div class="panel-footer">
+          <div class="drag-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/>
+            </svg>
+            提示：支持直接拖拽设备列表行到左侧“组织架构树”节点，快速更改设备所属组织。
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 模态弹窗：批量导入新设备 -->
+  <div class="modal-overlay hidden" id="modal-import">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>批量导入 GB28281 设备</h3>
+        <button class="btn-close" id="btn-close-import">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- 第一步：上传/拖拽文件 -->
+        <div class="import-step" id="import-step-upload">
+          <div class="upload-dropzone" id="dropzone">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <h4>拖拽设备数据表文件到此处，或<span>点击浏览文件</span></h4>
+            <p class="file-limit">仅支持 .csv, .xlsx, .xls 格式，最大支持 10MB 文件</p>
+            <input type="file" id="file-input" class="hidden" accept=".csv, .xlsx, .xls" />
+          </div>
+
+          <div class="template-download">
+            <span>不知道表格格式？</span>
+            <a href="#" id="download-template">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              下载导入模板.csv
+            </a>
+          </div>
+        </div>
+
+        <!-- 第二步：数据校验预览（上传后显示） -->
+        <div class="import-step hidden" id="import-step-preview">
+          <div class="validation-summary">
+            <div class="summary-badge success">
+              <span class="number" id="valid-count">0</span>
+              <span class="label">校验通过</span>
+            </div>
+            <div class="summary-badge error">
+              <span class="number" id="invalid-count">0</span>
+              <span class="label">校验失败（需修正）</span>
+            </div>
+          </div>
+
+          <div class="preview-table-wrapper">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>国标编码 (20位)</th>
+                  <th>设备IP</th>
+                  <th>所属组织</th>
+                  <th>校验状态</th>
+                </tr>
+              </thead>
+              <tbody id="preview-list-body">
+                <!-- 模拟解析出的数据 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-import">取消</button>
+        <button class="btn btn-primary hidden" id="btn-submit-import" disabled>确认导入 (<span id="import-submit-text">0</span>台)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗：选择组织归属（批量分配用） -->
+  <div class="modal-overlay hidden" id="modal-assign">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3>更改所属组织</h3>
+        <button class="btn-close" id="btn-close-assign">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="assign-desc">将选中的 <strong id="assign-device-count">0</strong> 台设备移动到以下组织：</p>
+        <div class="assign-tree-wrapper">
+          <div class="org-tree" id="assign-org-tree">
+            <!-- 渲染相同的组织树供选择 -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-assign">取消</button>
+        <button class="btn btn-primary" id="btn-confirm-assign" disabled>确认移动</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全局通知组件 -->
+  <div class="notification-container" id="notification-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

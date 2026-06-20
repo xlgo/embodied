@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>敦煌水墨</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fff;
+      cursor: none;
+    }
+
+    /* 画布层 */
+    #inkCanvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* 背景图层（SVG 敦煌场景） */
+    #bg {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 20% 80%, rgba(139,90,43,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(180,120,50,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 50% 50%, rgba(210,170,100,0.10) 0%, transparent 70%);
+    }
+
+    /* SVG 敦煌插画 */
+    #dunghuangSvg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+      pointer-events: none;
+    }
+
+    /* 自定义光标 */
+    #cursor {
+      position: fixed;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(100, 60, 20, 0.6);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.15s ease, opacity 0.3s ease;
+      mix-blend-mode: multiply;
+    }
+
+    /* 标题文字 */
+    #title {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: "STKaiti", "KaiTi", "楷体", serif;
+      font-size: 1.1rem;
+      color: rgba(100, 60, 20, 0);
+      letter-spacing: 0.4em;
+      transition: color 1s ease;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    #title.visible {
+      color: rgba(100, 60, 20, 0.55);
+    }
+  </style>
+</head>
+<body>
+
+<!-- 自定义光标 -->
+<div id="cursor"></div>
+
+<!-- 敦煌背景晕染层 -->
+<div id="bg"></div>
+
+<!-- 敦煌 SVG 插画 -->
+<svg id="dunghuangSvg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice"
+     xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 水墨渲染滤镜 -->
+    <filter id="ink" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="inkBlur">
+      <feGaussianBlur stdDeviation="1.2"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+
+    <!-- 敦煌配色渐变 -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c8956c" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#e8d5a3" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="sandGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c8a96e" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#8b5e2a" stop-opacity="0.55"/>
+    </linearGradient>
+    <radialGradient id="moonGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f5e6c0" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#d4a86e" stop-opacity="0.3"/>
+    </radialGradient>
+    <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e8c97a" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#e8c97a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 天空底色 -->
+  <rect width="1200" height="700" fill="url(#skyGrad)" filter="url(#inkBlur)"/>
+
+  <!-- 沙漠地面 -->
+  <path d="M0,520 Q200,480 400,510 Q600,540 800,500 Q1000,460 1200,490 L1200,700 L0,700 Z"
+        fill="url(#sandGrad)" filter="url(#ink)" opacity="0.7"/>
+
+  <!-- 沙丘层 -->
+  <path d="M0,600 Q150,550 300,570 Q450,590 550,555 Q650,520 750,550 Q900,580 1050,545 Q1150,520 1200,535 L1200,700 L0,700 Z"
+        fill="#8b5e2a" opacity="0.22" filter="url(#inkBlur)"/>
+
+  <!-- 月亮 -->
+  <circle cx="920" cy="130" r="55" fill="url(#moonGrad)" filter="url(#inkBlur)" opacity="0.9"/>
+  <circle cx="920" cy="130" r="80" fill="url(#haloGrad)" opacity="0.6"/>
+
+  <!-- 飞天 - 线描简化 -->
+  <g filter="url(#ink)" opacity="0.55" fill="none" stroke="#7a4a1e" stroke-width="1.5">
+    <!-- 身体 -->
+    <path d="M340,200 C330,220 320,250 325,280 C330,310 350,330 360,355"/>
+    <!-- 头 -->
+    <circle cx="340" cy="190" r="18" fill="#c8956c" fill-opacity="0.4" stroke="#7a4a1e" stroke-width="1.2"/>
+    <!-- 发髻 -->
+    <path d="M330,178 C335,165 350,162 355,175"/>
+    <!-- 飘带 -->
+    <path d="M355,210 C390,195 430,185 470,200 C510,215 540,230 570,215" stroke-width="1.8" opacity="0.7"/>
+    <path d="M325,240 C290,255 260,270 240,295 C220,320 215,350 230,370" stroke-width="1.4" opacity="0.6"/>
+    <!-- 手臂 -->
+    <path d="M335,225 C315,215 295,205 280,215 C265,225 260,240 270,250"/>
+    <path d="M350,235 C370,225 395,230 410,245"/>
+    <!-- 莲花 -->
+    <path d="M270,248 C265,240 258,235 262,230 C266,225 275,228 278,235"/>
+    <path d="M270,248 C275,240 282,235 280,228 C278,221 269,222 266,228"/>
+    <circle cx="270" cy="248" r="4" fill="#c8956c" fill-opacity="0.6" stroke="none"/>
+  </g>
+
+  <!-- 飞天2（右侧，镜像感） -->
+  <g filter="url(#ink)" opacity="0.45" fill="none" stroke="#5a3510" stroke-width="1.3"
+     transform="translate(860,160) scale(-1,1)">
+    <path d="M0,0 C-10,20 -20,50 -15,80 C-10,110 10,130 20,155"/>
+    <circle cx="0" cy="-10" r="15" fill="#c8956c" fill-opacity="0.35" stroke="#5a3510" stroke-width="1"/>
+    <path d="M-10,-22 C-5,-35 10,-38 15,-25"/>
+    <path d="M15,10 C50,-5 90,-15 130,0 C170,15 200,30 230,15" stroke-width="1.5" opacity="0.65"/>
+    <path d="M-15,40 C-50,55 -80,70 -100,95 C-120,120 -125,150 -110,170" stroke-width="1.2" opacity="0.55"/>
+    <path d="M-5,25 C-25,15 -45,5 -60,15 C-75,25 -80,40 -70,50"/>
+    <path d="M10,35 C30,25 55,30 70,45"/>
+  </g>
+
+  <!-- 莫高窟塔影 -->
+  <g filter="url(#ink)" opacity="0.38" fill="#6b3d0e">
+    <!-- 主塔 -->
+    <polygon points="580,420 600,200 620,420" opacity="0.6"/>
+    <rect x="572" y="418" width="56" height="8" opacity="0.5"/>
+    <rect x="565" y="425" width="70" height="10" opacity="0.45"/>
+    <!-- 塔层装饰 -->
+    <rect x="584" y="280" width="32" height="4" opacity="0.4"/>
+    <rect x="581" y="310" width="38" height="4" opacity="0.4"/>
+    <rect x="578" y="340" width="44" height="4" opacity="0.4"/>
+    <rect x="576" y="370" width="48" height="4" opacity="0.4"/>
+    <rect x="574" y="398" width="52" height="4" opacity="0.38"/>
+    <!-- 伞盖 -->
+    <ellipse cx="600" cy="200" rx="28" ry="6" opacity="0.5"/>
+    <ellipse cx="600" cy="194" rx="18" ry="4" opacity="0.45"/>
+    <ellipse cx="600" cy="190" rx="8" ry="2.5" opacity="0.4"/>
+
+    <!-- 副塔（左） -->
+    <polygon points="490,440 505,270 520,440" opacity="0.4"/>
+    <rect x="483" y="438" width="44" height="7" opacity="0.35"/>
+    <rect x="482" y="264" width="46" height="5" opacity="0.35"/>
+    <!-- 副塔（右） -->
+    <polygon points="680,440 695,270 710,440" opacity="0.4"/>
+    <rect x="673" y="438" width="44" height="7" opacity="0.35"/>
+    <rect x="672" y="264" width="46" height="5" opacity="0.35"/>
+  </g>
+
+  <!-- 祥云 -->
+  <g filter="url(#inkBlur)" opacity="0.35" fill="none" stroke="#a07040" stroke-width="1.5">
+    <path d="M100,150 C120,135 145,138 150,155 C155,138 180,132 195,150 C210,135 235,140 230,158 C245,145 265,152 258,168 C240,162 220,168 210,160 C200,175 175,178 165,162 C150,178 125,175 118,160 C105,170 88,162 100,150 Z"/>
+    <path d="M800,280 C815,268 835,271 838,284 C842,270 862,265 875,280 C888,268 906,273 902,287 C914,276 930,282 924,295 C910,290 893,295 884,288 C876,300 856,303 847,290 C836,303 815,300 809,288 C798,296 784,289 800,280 Z"/>
+    <path d="M200,320 C212,311 228,314 230,325 C233,313 249,308 260,321 C271,311 285,315 282,326 C292,317 305,322 300,332 C289,328 275,332 267,326 C261,336 244,338 237,327 C228,338 211,336 206,326 C197,333 185,327 200,320 Z"/>
+  </g>
+
+  <!-- 菩提叶装饰 -->
+  <g filter="url(#ink)" opacity="0.3" fill="none" stroke="#6b4820" stroke-width="1">
+    <path d="M80,450 C90,420 115,408 120,430 C125,408 150,420 145,450 C135,440 105,445 80,450 Z"/>
+    <line x1="100" y1="435" x2="112" y2="450"/>
+    <line x1="100" y1="435" x2="95" y2="445"/>
+    <line x1="100" y1="435" x2="106" y2="443"/>
+
+    <path d="M1080,380 C1090,350 1115,338 1120,360 C1125,338 1150,350 1145,380 C1135,370 1105,375 1080,380 Z"/>
+    <line x1="1100" y1="365" x2="1112" y2="380"/>
+    <line x1="1100" y1="365" x2="1095" y2="375"/>
+    <line x1="1100" y1="365" x2="1106" y2="373"/>
+  </g>
+
+  <!-- 水墨泼墨晕染效果 -->
+  <ellipse cx="300" cy="400" rx="180" ry="80" fill="#8b5e2a" opacity="0.06" filter="url(#inkBlur)"/>
+  <ellipse cx="900" cy="350" rx="150" ry="70" fill="#7a4a1e" opacity="0.07" filter="url(#inkBlur)"/>
+  <ellipse cx="600" cy="500" rx="250" ry="90" fill="#a07040" opacity="0.08" filter="url(#inkBlur)"/>
+</svg>
+
+<!-- 水墨笔触画布 -->
+<canvas id="inkCanvas"></canvas>
+
+<!-- 标题 -->
+<div id="title">敦煌 · 千年风华</div>
+
+<script>
+  const canvas = document.getElementById('inkCanvas');
+  const ctx = canvas.getContext('2d');
+  const cursor = document.getElementById('cursor');
+  const svgEl = document.getElementById('dunghuangSvg');
+  const titleEl = document.getElementById('title');
+
+  let W, H;
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // 水墨粒子
+  class InkDrop {
+    constructor(x, y, vx, vy) {
+      this.x = x;
+      this.y = y;
+      this.vx = vx + (Math.random() - 0.5) * 1.5;
+      this.vy = vy + (Math.random() - 0.5) * 1.5;
+      // 敦煌色调：赭石、土黄、朱砂、青金
+      const palette = [
+        [139, 90, 43],   // 赭石
+        [180, 120, 50],  // 土黄
+        [160, 80, 30],   // 深赭
+        [200, 150, 80],  // 浅土黄
+        [120, 60, 20],   // 深棕
+        [170, 100, 40],  // 琥珀
+        [90, 60, 130],   // 青金（点缀）
+        [150, 60, 40],   // 朱砂
+      ];
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      this.r = c[0]; this.g = c[1]; this.b = c[2];
+      this.life = 1.0;
+      this.decay = 0.012 + Math.random() * 0.018;
+      this.radius = 2 + Math.random() * 14;
+      this.maxRadius = this.radius * (1.5 + Math.random() * 2);
+      this.spreading = true;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vx *= 0.94;
+      this.vy *= 0.94;
+      if (this.spreading) {
+        this.radius += 0.5;
+        if (this.radius >= this.maxRadius) this.spreading = false;
+      }
+      this.life -= this.decay;
+    }
+    draw(ctx) {
+      if (this.life <= 0) return;
+      // 水墨晕染：多层渐变圆
+      const alpha = this.life * 0.35;
+      const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+      grad.addColorStop(0, `rgba(${this.r},${this.g},${this.b},${alpha})`);
+      grad.addColorStop(0.5, `rgba(${this.r},${this.g},${this.b},${alpha * 0.4})`);
+      grad.addColorStop(1, `rgba(${this.r},${this.g},${this.b},0)`);
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+
+  // 毛笔笔迹
+  class BrushStroke {
+    constructor(x, y) {
+      this.points = [{x, y}];
+      this.life = 1.0;
+      this.decay = 0.006 + Math.random() * 0.006;
+      this.width = 1 + Math.random() * 4;
+      const idx = Math.floor(Math.random() * 3);
+      const strokes = [
+        [100, 65, 25],
+        [130, 85, 35],
+        [80, 45, 15],
+      ];
+      const c = strokes[idx];
+      this.r = c[0]; this.g = c[1]; this.b = c[2];
+    }
+    addPoint(x, y) {
+      this.points.push({x, y});
+      if (this.points.length > 30) this.points.shift();
+    }
+    update() {
+      this.life -= this.decay;
+    }
+    draw(ctx) {
+      if (this.points.length < 2 || this.life <= 0) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(this.points[0].x, this.points[0].y);
+      for (let i = 1; i < this.points.length; i++) {
+        const p0 = this.points[i - 1];
+        const p1 = this.points[i];
+        ctx.lineTo(p1.x, p1.y);
+      }
+      ctx.strokeStyle = `rgba(${this.r},${this.g},${this.b},${this.life * 0.18})`;
+      ctx.lineWidth = this.width * this.life;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  let drops = [];
+  let strokes = [];
+  let currentStroke = null;
+  let mouseX = -999, mouseY = -999;
+  let isMoving = false;
+  let idleTimer = null;
+  let revealTimer = null;
+  let revealed = false;
+
+  function spawnDrops(x, y, vx, vy, count = 3) {
+    for (let i = 0; i < count; i++) {
+      drops.push(new InkDrop(x, y, vx, vy));
+    }
+  }
+
+  function onMouseMove(e) {
+    const x = e.clientX, y = e.clientY;
+    cursor.style.left = x + 'px';
+    cursor.style.top = y + 'px';
+
+    const dvx = (x - mouseX) * 0.15;
+    const dvy = (y - mouseY) * 0.15;
+
+    if (!isMoving) {
+      isMoving = true;
+      currentStroke = new BrushStroke(x, y);
+      strokes.push(currentStroke);
+    } else if (currentStroke) {
+      currentStroke.addPoint(x, y);
+    }
+
+    spawnDrops(x, y, dvx, dvy, 2);
+
+    mouseX = x;
+    mouseY = y;
+
+    // 显示背景
+    svgEl.style.opacity = '0.85';
+    titleEl.classList.add('visible');
+    revealed = true;
+
+    // 重置静止计时
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      isMoving = false;
+      currentStroke = null;
+      fadeOut();
+    }, 1800);
+  }
+
+  function onMouseLeave() {
+    clearTimeout(idleTimer);
+    isMoving = false;
+    currentStroke = null;
+    fadeOut();
+  }
+
+  function fadeOut() {
+    svgEl.style.opacity = '0';
+    titleEl.classList.remove('visible');
+    revealed = false;
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseleave', onMouseLeave);
+
+  // 渐隐旧笔迹
+  function clearFade() {
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function animate() {
+    clearFade();
+
+    // 更新绘制水墨粒子
+    drops = drops.filter(d => d.life > 0);
+    for (const d of drops) {
+      d.update();
+      d.draw(ctx);
+    }
+
+    // 更新绘制笔迹
+    strokes = strokes.filter(s => s.life > 0);
+    for (const s of strokes) {
+      s.update();
+      s.draw(ctx);
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+</script>
+</body>
+</html>
