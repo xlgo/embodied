@@ -685,8 +685,11 @@ export default function ConfigPanel({
                         style={{ flex: 1 }}
                       >
                         <option value="none">无</option>
+                        <option value="text">文本内容</option>
+                        <option value="image">图片展示</option>
+                        <option value="video">视频播放</option>
+                        <option value="audio">音频播放</option>
                         <option value="flat_map">平面地图</option>
-                        <option value="video">视频监控</option>
                       </select>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -710,41 +713,103 @@ export default function ConfigPanel({
                       />
                     </div>
 
-                    {/* Images Selection grid */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left', marginTop: '4px' }}>添加图片</span>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
-                        {draftMarker?.images?.map((img, idx) => (
-                          <div key={idx} style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '6px', border: '1px solid #2e354f', overflow: 'hidden' }}>
-                            <img src={img} alt="linkage" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <button
-                              className="image-item-del"
-                              onClick={() => removeImage(idx)}
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                right: 0,
-                                background: 'rgba(255, 59, 48, 0.8)',
-                                color: '#ffffff',
-                                border: 'none',
-                                fontSize: '9px',
-                                width: '14px',
-                                height: '14px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '0 0 0 4px',
-                                padding: 0
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                        <div className="image-add-box" onClick={addMockImage}>+</div>
+                    {/* Text Action Specific Inputs */}
+                    {draftMarker?.linkAction === 'text' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '12px', color: '#a0aec0', textAlign: 'left' }}>文本内容</span>
+                        <textarea
+                          className="form-input"
+                          style={{ height: '80px', resize: 'vertical', padding: '6px' }}
+                          placeholder="请输入关联动作展示的文本内容..."
+                          value={draftMarker?.linkText || ''}
+                          onChange={(e) => onUpdateDraft({ linkText: e.target.value })}
+                        />
                       </div>
-                    </div>
+                    )}
+
+                    {/* Video Action Specific Inputs */}
+                    {draftMarker?.linkAction === 'video' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '12px', color: '#a0aec0' }}>视频地址</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateDraft({ linkVideoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' })}
+                            style={{ fontSize: '11px', background: '#1c1f2e', border: '1px solid #2e354f', color: '#00dfb6', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                          >
+                            使用演示视频
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="请输入 MP4/Embed 视频链接..."
+                          value={draftMarker?.linkVideoUrl || ''}
+                          onChange={(e) => onUpdateDraft({ linkVideoUrl: e.target.value })}
+                        />
+                      </div>
+                    )}
+
+                    {/* Audio Action Specific Inputs */}
+                    {draftMarker?.linkAction === 'audio' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '12px', color: '#a0aec0' }}>音频地址</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateDraft({ linkAudioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' })}
+                            style={{ fontSize: '11px', background: '#1c1f2e', border: '1px solid #2e354f', color: '#00dfb6', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}
+                          >
+                            使用演示音频
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="请输入 MP3 音频链接..."
+                          value={draftMarker?.linkAudioUrl || ''}
+                          onChange={(e) => onUpdateDraft({ linkAudioUrl: e.target.value })}
+                        />
+                      </div>
+                    )}
+
+                    {/* Images Selection grid */}
+                    {draftMarker?.linkAction === 'image' && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '12px', color: '#a0aec0', width: '90px', flexShrink: 0, textAlign: 'left', marginTop: '4px' }}>关联图片</span>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                          {draftMarker?.images?.map((img, idx) => (
+                            <div key={idx} style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '6px', border: '1px solid #2e354f', overflow: 'hidden' }}>
+                              <img src={img} alt="linkage" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <button
+                                className="image-item-del"
+                                onClick={() => removeImage(idx)}
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  right: 0,
+                                  background: 'rgba(255, 59, 48, 0.8)',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  fontSize: '9px',
+                                  width: '14px',
+                                  height: '14px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '0 0 0 4px',
+                                  padding: 0
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <div className="image-add-box" onClick={addMockImage}>+</div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

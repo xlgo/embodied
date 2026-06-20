@@ -7,6 +7,7 @@ import { findToolById, findToolForMarker } from './components/tools/registry';
 import UserStatusWidget from './components/UserStatusWidget';
 import FilterToolbar from './components/FilterToolbar';
 import BottomToolbar from './components/BottomToolbar';
+import LinkActionModal from './components/LinkActionModal';
 
 const INITIAL_MARKERS = [
   {
@@ -329,6 +330,24 @@ function App() {
   // Floating Marker List visibility state (defaults to false for maximized view)
   const [markerListVisible, setMarkerListVisible] = useState(false);
 
+  // Link Action Modal States
+  const [activeLinkActionMarker, setActiveLinkActionMarker] = useState(null);
+  const [linkModalPos, setLinkModalPos] = useState({ x: 250, y: 80 });
+  const [linkModalSize, setLinkModalSize] = useState({ width: 800, height: 600 });
+
+  // Update link action modal size/position when marker is loaded
+  useEffect(() => {
+    if (activeLinkActionMarker) {
+      const width = activeLinkActionMarker.windowWidth || 800;
+      const height = activeLinkActionMarker.windowHeight || 600;
+      setLinkModalSize({ width, height });
+      
+      const x = Math.max(40, (window.innerWidth - width) / 2);
+      const y = Math.max(40, (window.innerHeight - height) / 2);
+      setLinkModalPos({ x, y });
+    }
+  }, [activeLinkActionMarker]);
+
   // Automatically show the floating marker list when editing is active
   useEffect(() => {
     if (editorVisible || drawingMode !== 'none' || editingPolygonId || editingPointId) {
@@ -382,6 +401,7 @@ function App() {
         setSelectedMarkerId(marker.id);
         setDraftMarker(JSON.parse(JSON.stringify(targetMarker)));
         setEditorVisible(true);
+        setActiveLinkActionMarker(null); // Close active action display on edit
 
         if (targetMarker.type === 'point') {
           setEditingPointId(marker.id);
@@ -396,11 +416,17 @@ function App() {
       lastMarkerClickRef.current = { id: null, time: 0 };
     } else {
       lastMarkerClickRef.current = { id: marker.id, time: now };
+      // Single click: display associated action if set
+      const targetMarker = markers.find(m => m.id === marker.id);
+      if (targetMarker && targetMarker.linkAction && targetMarker.linkAction !== 'none') {
+        setActiveLinkActionMarker(targetMarker);
+      }
     }
   };
 
   const handleViewerClick = (data) => {
     setContextMenu({ visible: false, x: 0, y: 0 });
+    setActiveLinkActionMarker(null); // Close active action modal on background click
     if (drawingMode === 'none') return;
     
     const { pitch, yaw } = data;
@@ -1556,6 +1582,17 @@ function App() {
                 paddingLeft: '16px',
                 transition: 'left 0.3s ease, opacity 0.3s ease'
               }}
+            />
+          )}
+
+          {/* Link Action Content Modal */}
+          {activeLinkActionMarker && (
+            <LinkActionModal
+              marker={activeLinkActionMarker}
+              onClose={() => setActiveLinkActionMarker(null)}
+              position={linkModalPos}
+              setPosition={setLinkModalPos}
+              size={linkModalSize}
             />
           )}
         </div>
