@@ -29,7 +29,8 @@ const INITIAL_MARKERS = [
     category: 'none',
     layerFilter: 'always',
     coordType: 'fov',
-    linkAction: 'none',
+    linkAction: 'text',
+    linkText: '设备名称: 呼兰河左岸监控A\n设备状态: 🟢 运行正常\n当前水位: 2.14 m\n设备备注: 该点位负责日常河道防汛与环境监视。',
     windowWidth: 800,
     windowHeight: 600,
     images: ['https://picsum.photos/id/10/80/80'],
@@ -58,7 +59,7 @@ const INITIAL_MARKERS = [
     tooltip: '这是一个多边形标注区域',
     category: 'none',
     layerFilter: 'always',
-    linkAction: 'none',
+    linkAction: 'flat_map',
     windowWidth: 800,
     windowHeight: 600,
     images: []
@@ -418,8 +419,19 @@ function App() {
       lastMarkerClickRef.current = { id: marker.id, time: now };
       // Single click: display associated action if set
       const targetMarker = markers.find(m => m.id === marker.id);
-      if (targetMarker && targetMarker.linkAction && targetMarker.linkAction !== 'none') {
-        setActiveLinkActionMarker(targetMarker);
+      if (targetMarker) {
+        if (targetMarker.linkAction && targetMarker.linkAction !== 'none') {
+          setActiveLinkActionMarker(targetMarker);
+        } else {
+          // Provide guided help on how to configure actions
+          const guidedMarker = {
+            ...targetMarker,
+            linkAction: 'text',
+            title: `提示:【${targetMarker.title || targetMarker.tooltip || '未命名'}】未配置关联动作`,
+            linkText: `💡 提示：该标注点位尚未配置“关联动作”。\n\n您可以按照以下步骤进行配置：\n1. 双击此标注点位，打开“样式属性配置”面板。\n2. 切换至【关联动作】页签。\n3. 在【关联动作】下拉框中，选择需要的类型（文本内容、图片展示、视频播放、音频播放、平面地图）。\n4. 填入具体的内容（例如文本，或选择演示视频/音频，或添加图片）。\n5. 点击右下角【保存】按钮并关闭。\n6. 再次“单击”该点位，即可直接展示您所配置的关联内容！`
+          };
+          setActiveLinkActionMarker(guidedMarker);
+        }
       }
     }
   };
