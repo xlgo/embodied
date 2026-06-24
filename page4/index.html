@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,11 +9,12 @@
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Serif+SC:wght@300;600;900&display=swap');
 
         :root {
-            --primary-color: #8c2d19; /* 敦煌朱砂 */
+            --primary-color: #8c2d19;
+            /* 敦煌朱砂 */
             --bg-color: #ffffff;
             --text-dark: #1a1a1a;
             --text-muted: #666666;
-            --dunhuang-gold: #d4a373;
+            --dunhuang-gold: #d4a374;
         }
 
         * {
@@ -21,7 +23,8 @@
             padding: 0;
         }
 
-        html, body {
+        html,
+        body {
             width: 100%;
             height: 100%;
             overflow: hidden;
@@ -57,7 +60,8 @@
         }
 
         .ui-layer * {
-            pointer-events: auto; /* 恢复UI子元素的交互 */
+            pointer-events: auto;
+            /* 恢复UI子元素的交互 */
         }
 
         header {
@@ -199,18 +203,29 @@
             height: 36px;
             border-radius: 50%;
             border: 2px solid #fff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: box-shadow 0.3s;
         }
 
         .color-swatch:hover .color-circle {
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
         }
 
-        .color-circle.cinnabar { background-color: #8c2d19; }
-        .color-circle.malachite { background-color: #2b614d; }
-        .color-circle.azurite { background-color: #1a3c61; }
-        .color-circle.ochre { background-color: #b87333; }
+        .color-circle.cinnabar {
+            background-color: #8c2d19;
+        }
+
+        .color-circle.malachite {
+            background-color: #2b614d;
+        }
+
+        .color-circle.azurite {
+            background-color: #1a3c61;
+        }
+
+        .color-circle.ochre {
+            background-color: #b87333;
+        }
 
         .color-name {
             font-size: 0.75rem;
@@ -229,14 +244,14 @@
             padding: 24px;
             border-radius: 16px;
             max-width: 320px;
-            box-shadow: 0 10px 35px rgba(0,0,0,0.06);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.06);
             transform: translateY(0);
             transition: transform 0.3s, box-shadow 0.3s;
         }
 
         .info-panel:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
         }
 
         .info-panel h3 {
@@ -256,19 +271,41 @@
         }
 
         @keyframes breathe {
-            0%, 100% { opacity: 0.7; transform: scale(0.98); }
-            50% { opacity: 1; transform: scale(1.02); }
+
+            0%,
+            100% {
+                opacity: 0.7;
+                transform: scale(0.98);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.02);
+            }
         }
 
         /* 响应式适配 */
         @media (max-width: 768px) {
-            .hero-title { font-size: 2.8rem; }
-            .hero-subtitle { font-size: 0.9rem; }
-            .nav-links, .info-panel { display: none; }
-            .ui-layer { padding: 20px; }
+            .hero-title {
+                font-size: 2.8rem;
+            }
+
+            .hero-subtitle {
+                font-size: 0.9rem;
+            }
+
+            .nav-links,
+            .info-panel {
+                display: none;
+            }
+
+            .ui-layer {
+                padding: 20px;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <!-- 主渲染 Canvas -->
@@ -351,13 +388,13 @@
                 this.opacity = isSplatter ? 0.7 : 0.95;
                 this.life = 0;
                 this.maxLife = isSplatter ? Math.random() * 40 + 30 : Math.random() * 100 + 80;
-                
+
                 // 洇散微移动力学
                 const angle = Math.random() * Math.PI * 2;
                 const speed = isSplatter ? Math.random() * 2 + 1 : Math.random() * 0.3;
                 this.vx = Math.cos(angle) * speed;
                 this.vy = Math.sin(angle) * speed;
-                
+
                 this.isSplatter = isSplatter;
                 // 纸张纤维阻力系数
                 this.friction = 0.97;
@@ -370,11 +407,11 @@
                 this.vy *= this.friction;
 
                 this.life++;
-                
+
                 // 模拟墨水在宣纸上的浸润扩散
                 const progress = this.life / this.maxLife;
                 this.radius = this.radius + (this.targetRadius - this.radius) * 0.04;
-                
+
                 if (progress > 0.6) {
                     // 后期渐渐淡出
                     this.opacity = Math.max(0, 1 - progress);
@@ -387,7 +424,7 @@
                     this.x, this.y, this.radius * 0.1,
                     this.x, this.y, this.radius
                 );
-                
+
                 // 模拟宣纸上“墨分五色”的浓淡变化
                 const alpha = this.opacity;
                 grad.addColorStop(0, `rgba(0, 0, 0, ${alpha})`);
@@ -511,7 +548,7 @@
 
             const now = Date.now();
             const timeSinceLastActive = now - lastActiveTime;
-            
+
             // 是否处于静止或离开状态超2秒
             const shouldFade = !mouseInArea || timeSinceLastActive >= 2000;
 
@@ -529,13 +566,13 @@
 
             // 2. 渲染遮罩（离屏Canvas）
             maskCtx.clearRect(0, 0, width, height);
-            
+
             // 使用 CSS filter 级联模糊和对比度，实现水墨交融的特殊黏滞感
             maskCtx.filter = 'blur(12px) contrast(14)';
-            
+
             // 绘制粒子到离屏遮罩画布
             inkParticles.forEach(p => p.draw(maskCtx));
-            
+
             // 重置滤镜以免影响后续绘制
             maskCtx.filter = 'none';
 
@@ -589,4 +626,5 @@
         step();
     </script>
 </body>
+
 </html>
